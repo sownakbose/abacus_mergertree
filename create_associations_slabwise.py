@@ -1,28 +1,22 @@
 #!/usr/bin/env python
-#! Filename: associate_particle_slices_v5.3.py
+#! Filename: create_associations_slabwise.py
 
 from __future__ import division
 from joblib import Parallel, delayed
 from scipy.spatial import cKDTree
-import match_searchsorted as ms
-from stats import weighted_mode
 from numba import jit
 from tqdm import *
 import numpy as np
 import h5py as h5
-import itertools
 import tempfile
 import warnings
 import shutil
-import Abacus
-import Groups
 import numba
 import glob
 import asdf
 import time
 import sys
 import os
-import gc
 
 # Load merger tree libraries
 
