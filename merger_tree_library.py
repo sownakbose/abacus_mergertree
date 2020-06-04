@@ -2,19 +2,13 @@
 #! Filename: associate_particle_slices_v5.0.py
 
 from __future__ import division
-import hdf5_multi_file as hmf
-from AbacusCosmos import Halos
-from abacus_halo_catalog import DietAbacusHaloCatalog
 from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
-from stats import weighted_mode
 from numba import jit
 from tqdm import *
 import numpy as np
 import h5py as h5
 import tempfile
 import shutil
-import Abacus
-import Groups
 import numba
 import glob
 import time
@@ -28,6 +22,7 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 
 	if "Abacus" in halo_type:
 		if "FOF" in halo_type:
+				import Groups
 				cat    = Groups.GroupCatalog(step_now, load_subsamples="pids", convert_units=True)
 				halo   = cat.halos
 				pids   = cat.tagged_pids
@@ -36,6 +31,7 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 				pos    = halo[:]["pos"]
 				nphalo = halo[:]["N"]
 		elif "SO" in halo_type:
+				from abacus_halo_catalog import DietAbacusHaloCatalog
 				cat    = Groups.DietGroupCatalog(step_now, load_subsamples="A_pids", convert_units=True)
 				halo   = cat.halos
 				pids   = cat.pids
@@ -70,6 +66,7 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 				vmax   = cat.halos[:]["vcirc_max_L2com"].data
 				nphalo = cat.halos[:]["N"].data
 		elif "Cosmos" in halo_type:
+				from AbacusCosmos import Halos
 				cat    = Halos.make_catalog_from_dir(dirname = step_now, load_pids = True, load_subsamples=True)
 				halo   = cat.halos
 				parts  = cat.subsamples
@@ -86,6 +83,7 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 		box    = cat.header["BoxSizeHMpc"]
 		mhalo  = nphalo * mpart
 	elif "Rockstar" in halo_type:
+		import hdf5_multi_file as hmf
 		nfiles = len(glob.glob(step_now + "/halos_0*.h5"))
 		cat    = hmf.MultiFile(step_now + "/halos_0.%d.h5", (0, nfiles), allow_missing = True)
 		halo   = cat["halos"]

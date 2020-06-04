@@ -33,27 +33,27 @@ my_parser = argparse.ArgumentParser(description="Code to create halo time slice 
 # Add the arguments
 
 my_parser.add_argument("-inputdir",\
- 	action="store",\
+	action="store",\
 	type=str,\
 	help="Path to where the simulation outputs are stored",\
 	default="/mnt/store/AbacusSummit/")
 my_parser.add_argument("-simname",\
- 	action="store",\
+	action="store",\
 	type=str,\
 	help="Simulation name",\
 	default="AbacusSummit_highbase_c000_ph100")
 my_parser.add_argument("-numhalofiles",\
- 	action="store",\
+	action="store",\
 	type=int,\
 	help="Number of halo_info files per output time",\
 	default=16)
 my_parser.add_argument("-num_cores",\
- 	action="store",\
+	action="store",\
 	type=int,\
 	help="Number of cores for parallelisation",\
 	default=16)
 my_parser.add_argument("-outputdir",\
- 	action="store",\
+	action="store",\
 	type=str,\
 	help="Path to where the associations outputs will be saved",\
 	default="../data/")
@@ -599,9 +599,9 @@ for jj in range(len(steps)-1):
 	t_step_finish = time.time()
 	print("Total step time: %4.2fs"%(t_step_finish-t_step_start))
 	print("Total time spent building trees until now: %4.2fs"%(tree_build_time))
-    print("Total time spent querying trees until now: %4.2fs"%(tree_query_time))
+	print("Total time spent querying trees until now: %4.2fs"%(tree_query_time))
 	print("Total time spent reading until now: %4.2fs"%(read_time))
-    print("Total time spent writing until now: %4.2fs"%(write_time))
+	print("Total time spent writing until now: %4.2fs"%(write_time))
 	print("Total time spent matching haloes until now: %4.2fs"%(loop_time))
 
 	sys.stdout.flush()
