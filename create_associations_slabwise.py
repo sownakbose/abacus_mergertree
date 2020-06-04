@@ -10,6 +10,7 @@ import numpy as np
 import h5py as h5
 import tempfile
 import warnings
+import argparse
 import shutil
 import numba
 import glob
@@ -24,9 +25,44 @@ from merger_tree_library import read_halo_catalogue, filled_array, indxxHaloSlab
 
 warnings.filterwarnings("ignore")
 
+# Create the parser
+
+my_parser = argparse.ArgumentParser(description="Code to create halo time slice associations from abacus outputs",\
+	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+# Add the arguments
+
+my_parser.add_argument("-inputdir",\
+ 	action="store",\
+	type=str,\
+	help="Path to where the simulation outputs are stored",\
+	default="/mnt/store/AbacusSummit/")
+my_parser.add_argument("-simname",\
+ 	action="store",\
+	type=str,\
+	help="Simulation name",\
+	default="AbacusSummit_highbase_c000_ph100")
+my_parser.add_argument("-numhalofiles",\
+ 	action="store",\
+	type=int,\
+	help="Number of halo_info files per output time",\
+	default=16)
+my_parser.add_argument("-num_cores",\
+ 	action="store",\
+	type=int,\
+	help="Number of cores for parallelisation",\
+	default=16)
+my_parser.add_argument("-outputdir",\
+ 	action="store",\
+	type=str,\
+	help="Path to where the associations outputs will be saved",\
+	default="../data/")
+
+args = my_parser.parse_args()
+
 # Initialise
 
-num_cores    = 16
+num_cores    = args.num_cores
 pre_dispatch = "4*n_jobs"
 batch_size   = "auto"
 halo_type    = "Abacus_slabwise" # "Abacus_FOF" or "Abacus_SO" or "Rockstar" or "Abacus_Cosmos" or "asdf"
@@ -35,38 +71,31 @@ end_snap     = None
 
 # Slice spacing to build tree for
 dn = 1
-file_nchunks = 16
+file_nchunks = args.numhalofiles
+
+# The following parameters probably shouldn't be changed
 
 # Match fraction to be considered a progenitor
 mfrac    = 0.49 # should be = 0.5, but allow a small error
+# Minimum number of particles in halo to consider for a candidate merger tree root
 npmin    = 50
+# Minimum number of subsampled particles a halo needs to have to consider for associations
 ntagmin  = 5
+# Minimum number of subsampled particles a halo needs to have to be considered a matching candidate
 lowlim   = int(mfrac*ntagmin)
+# Threshold halo mass for building tree of proximate massive haloes ( needed for search_rad parameter)
 massive_threshold = 1e14
-
-# Search radius
-search_rad = 3.0 # Mpc/h
 
 # Output name
 
-#outNam  = "Tree_DESI_L760_N2660_prototype_v2_SOmax3_alpha0.8_dn%d"%(dn)
-#outNam  = "Tree_MiniAbacusSummit_base_c000_ph000_dn%d"%(dn)
-#outNam  = "test_dn%d"%(dn)
-#outNam  = "Tree_AbacusCosmos_1100box_planck_00-0-FOF_dn%d"%(dn)
-
-#outNam = "Tree_AbacusSummit_highbase_base_c000_ph000_dn%d"%(dn)
-simName = "AbacusSummit_highbase_c000_ph100"
+simName = args.simname #"AbacusSummit_highbase_c000_ph100"
 
 # Load initial catalogue
 
-#base   = "/mnt/store/nam/DESI_L760_N2660_prototype_v2/Jan9/"
-#base   = "/mnt/store/lgarrison/DESI_L760_N2660_prototype_v2_SOmax3_alpha0.8/group/"
-#base   = "/mnt/franklin_hardraid_inner/nam/MiniAbacusSummit_base_c000_ph000/group/"
-#base   = "/mnt/gosling1/bigsim_products/AbacusCosmos_1100box_planck_products/AbacusCosmos_1100box_planck_00-0_products/AbacusCosmos_1100box_planck_00-0_FoF_halos/z*"
-base   = "/mnt/store/AbacusSummit/%s"%(simName)
+base   = args.inputdir + "/%s"%(simName)
 base  += "/halos/z*"
 
-odir    = "../data/%s/"%(simName)
+odir   = args.outputdir + "/%s/"%(simName)
 
 if not os.path.exists(odir):
 	os.makedirs(odir)
@@ -98,9 +127,7 @@ loop_time       = 0.0
 @jit(nopython=True, fastmath=True)
 def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 
-	#halo_index  = iter
 	halo_index   = mask_eligible[iter]
-	#indexArray[iter] = indxx[halo_index]
 
 	progs = []
 
@@ -108,6 +135,7 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		mainProgArray[halo_index]  = -999
 		return [0]
 
+	# Collect the PIDs and densities associated with the 10% subsamples for this halo
 	ids_this_haloA = pids[nstartA[halo_index] : nstartA[halo_index]+ntagA[halo_index]]
 	ids_this_haloB = pids[nstartB[halo_index] : nstartB[halo_index]+ntagB[halo_index]]
 	ids_this_halo  = np.append(ids_this_haloA, ids_this_haloB)
@@ -121,6 +149,7 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 	id_contr_max = -999
 	frac_now     = 0.0
 
+	# Loop over list of neighbours
 	for	j in range(len(neigh)):
 
 		idx_this_cand  = neigh[j]
@@ -128,10 +157,10 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		if (ntag_next[idx_this_cand] == 0) or (ntag_next[idx_this_cand] <= lowlim):
 			continue
 
+		# Collect PIDs associated with the 10% subsamples for this candidate match
 		ids_tmp_candA  = pids_next[nstartA_next[idx_this_cand] : nstartA_next[idx_this_cand]+ntagA_next[idx_this_cand]]
 		ids_tmp_candB  = pids_next[nstartB_next[idx_this_cand] : nstartB_next[idx_this_cand]+ntagB_next[idx_this_cand]]
 		ids_tmp_cand   = np.append(ids_tmp_candA, ids_tmp_candB)
-		#sorter         = np.argsort(ids_tmp_cand, kind = "mergesort")
 		ids_tmp_cand.sort()
 
 		# Match IDs
@@ -139,12 +168,11 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		ptr             = np.searchsorted(ids_tmp_cand, ids_this_halo)
 		ptr[ptr>=len(ids_tmp_cand)] = 0
 		ptr[ptr<0]      = 0
-		#ind            = np.where(ids_tmp_cand[ptr] != ids_this_halo)[0]
-		#ptr[ind]       = -1
-		#mask           = np.where(ptr != -1)[0]
 		mask            = np.where(ids_tmp_cand[ptr] == ids_this_halo)[0]
 
 		#print(len(mask), indxx_next[idx_this_cand], '%3.2e'%mhalo_next[idx_this_cand], mhalo[halo_index]/mhalo_next[idx_this_cand])
+
+		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 		if not len(mask) == 0:
 			pids_frac_this = len(mask) / float(nump_this_halo)
@@ -178,6 +206,7 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		dmainProgArray[halo_index]  = -999
 		return
 
+	# Collect the PIDs and densities associated with the 10% subsamples for this halo
 	ids_this_haloA = pids[nstartA[halo_index] : nstartA[halo_index]+ntagA[halo_index]]
 	ids_this_haloB = pids[nstartB[halo_index] : nstartB[halo_index]+ntagB[halo_index]]
 	ids_this_halo  = np.append(ids_this_haloA, ids_this_haloB)
@@ -200,7 +229,6 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		ids_tmp_candA  = pids_dnext[nstartA_dnext[idx_this_cand] : nstartA_dnext[idx_this_cand]+ntagA_dnext[idx_this_cand]]
 		ids_tmp_candB  = pids_dnext[nstartB_dnext[idx_this_cand] : nstartB_dnext[idx_this_cand]+ntagB_dnext[idx_this_cand]]
 		ids_tmp_cand   = np.append(ids_tmp_candA, ids_tmp_candB)
-		#sorter         = np.argsort(ids_tmp_cand, kind = "mergesort")
 		ids_tmp_cand.sort()
 
 		# Match IDs
@@ -208,11 +236,9 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		ptr             = np.searchsorted(ids_tmp_cand, ids_this_halo)
 		ptr[ptr>=len(ids_tmp_cand)] = 0
 		ptr[ptr<0]      = 0
-		#ind            = np.where(ids_tmp_cand[ptr] != ids_this_halo)[0]
-		#ptr[ind]       = -1
-		#mask           = np.where(ptr != -1)[0]
 		mask            = np.where(ids_tmp_cand[ptr] == ids_this_halo)[0]
 
+		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 
 		if not len(mask) == 0:
@@ -237,6 +263,7 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 	dmainProgFracArray[halo_index] = frac_now
 	return
 
+# Master function that executes both surf_halo and surf_halo_dnext
 def surf_halo_tot(iter, counter, mainProgArray, mainProgFracArray, dmainProgArray, dmainProgFracArray):
 
 		# Define neigh and dneigh here!!
@@ -258,6 +285,7 @@ def surf_halo_tot(iter, counter, mainProgArray, mainProgFracArray, dmainProgArra
 
 		return progenitors
 
+# Master function for final step of associations code when only surf_halo needs to be run
 def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray):
 
 	neigh = neighbours[counter]
@@ -275,6 +303,7 @@ def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray):
 
 start_time = time.time()
 
+# Being loop over timesteps
 for jj in range(len(steps)-1):
 #for jj in range(1):
 
@@ -317,6 +346,7 @@ for jj in range(len(steps)-1):
 		file_num_min = int(chunk_list[ifile_counter][0][-8:-5]) # Remove the .asdf trailing at the end
 		file_num_max = int(chunk_list[ifile_counter][-1][-8:-5])
 
+		# Begin reading halo_info files and 10% subsamples
 		t_read_0 = time.time()
 		if ifile_counter == 0:
 			header, box, nslice, z, numhalos, nphalo, mhalo, pos, r100, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = True)
@@ -339,6 +369,7 @@ for jj in range(len(steps)-1):
 
 		search_list_next = []
 
+		# Collect the halo_info filenames on either side of current in the preceding timestep
 		if file_num_max == len(step_next_list)-1:
 			search_list_next.append(step_next_list[file_num_min:file_num_max+1])
 			search_list_next = list(np.array(search_list_next).flat)
@@ -352,6 +383,7 @@ for jj in range(len(steps)-1):
 		if (file_num_min == 0) and (file_num_max == len(step_next_list)-1):
 			search_list_next = step_next_list
 
+		# Read the halo_info files and 10% subsamples
 		t_read_0 = time.time()
 		box, nslice_next, z_next, numhalos_next, nphalo_next, mhalo_next, pos_next, r100_next, vmax_next, nstartA_next, ntagA_next, nstartB_next, ntagB_next, ntag_next, pids_next, rho_next = read_halo_catalogue(search_list_next, halo_type, return_header = False)
 		t_read_1 = time.time()
@@ -381,6 +413,7 @@ for jj in range(len(steps)-1):
 
 			search_list_dnext = []
 
+			# Collect the halo_info filenames on either side of current in the second preceding timestep
 			if file_num_max == len(step_dnext_list)-1:
 				search_list_dnext.append(step_dnext_list[file_num_min:file_num_max+1])
 				search_list_dnext = list(np.array(search_list_dnext).flat)
@@ -394,6 +427,7 @@ for jj in range(len(steps)-1):
 			if (file_num_min == 0) and (file_num_max == len(step_dnext_list)-1):
 				search_list_dnext = step_dnext_list
 
+			# Read in the halo_info files
 			t_read_0 = time.time()
 			box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, r100_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext = read_halo_catalogue(search_list_dnext, halo_type, return_header = False)
 			t_read_1 = time.time()
@@ -421,6 +455,8 @@ for jj in range(len(steps)-1):
 
 		mask_eligible = np.where( (nphalo >= npmin) & (ntag >= ntagmin) )[0]
 
+		# Find out which haloes in current timestep are close to a massive cluster. These objects
+		# need an especially large search_rad
 		print("Building tree 3 of 3.")
 		sys.stdout.flush()
 		t_build_1     = time.time()
@@ -442,6 +478,7 @@ for jj in range(len(steps)-1):
 
 		objs_with_massive_neighbour = np.isfinite(dist)
 
+		# Build the array of search_rad
 		search_rad                 = r100[mask_eligible] * 4.0
 		search_rad[search_rad>3.0] = 3.0
 		search_rad[search_rad<2.0] = 2.0
@@ -518,6 +555,7 @@ for jj in range(len(steps)-1):
 
 		t0 = time.time()
 
+		# We need to flatten the list of progenitor indices
 		PROG_INDX_OUT = [[0]] * len(mhalo)
 		for i in range(len(mask_eligible)):
 			ind = mask_eligible[i]
