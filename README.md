@@ -1,5 +1,5 @@
 # abacus_mergertree
-Code to develop halo associations between Abacus timeslices
+Code to develop halo associations between Abacus timeslices.
 
 This code has a few non-standard dependices, including
 
@@ -8,4 +8,8 @@ This code has a few non-standard dependices, including
 * asdf
 * tqdm
 
-One also needs to install the abacusutils package from https://github.com/abacusorg/abacusutils. 
+Each of these can be installed easily using `pip install package_name`.
+
+One also needs to install the abacusutils package from https://github.com/abacusorg/abacusutils.
+
+# Running the code
