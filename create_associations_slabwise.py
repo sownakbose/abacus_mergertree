@@ -598,9 +598,11 @@ for jj in range(len(steps)-1):
 
 	t_step_finish = time.time()
 	print("Total step time: %4.2fs"%(t_step_finish-t_step_start))
-	print("Total time spent doing tree stuff until now: %4.2fs"%(tree_build_time+tree_query_time))
-	print("Total I/O time until now: %4.2fs"%(read_time+write_time))
-	print("Total time spent matching haloes: %4.2fs"%(loop_time))
+	print("Total time spent building trees until now: %4.2fs"%(tree_build_time))
+        print("Total time spent querying trees until now: %4.2fs"%(tree_query_time))
+	print("Total time spent reading until now: %4.2fs"%(read_time))
+        print("Total time spent writing until now: %4.2fs"%(write_time))
+	print("Total time spent matching haloes until now: %4.2fs"%(loop_time))
 
 	sys.stdout.flush()
 
