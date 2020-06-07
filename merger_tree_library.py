@@ -2,9 +2,9 @@
 #! Filename: associate_particle_slices_v5.0.py
 
 from __future__ import division
-from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
 from numba import jit
 from tqdm import *
+import CompaSOHaloCatalog
 import numpy as np
 import h5py as h5
 import tempfile
