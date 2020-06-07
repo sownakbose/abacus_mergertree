@@ -86,7 +86,7 @@ lowlim   = int(mfrac*ntagmin)
 # Threshold halo mass for building tree of proximate massive haloes ( needed for search_rad parameter)
 massive_threshold = 1e14
 # Maximum number of neighbours to search through
-num_neigh = 300
+num_neigh = 250
 # Upper bound distance to search for neighbours
 search_rad = 4.0
 
