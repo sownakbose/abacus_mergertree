@@ -42,10 +42,10 @@ my_parser.add_argument("-simname",\
 	type=str,\
 	help="Simulation name",\
 	default="AbacusSummit_highbase_c000_ph100")
-my_parser.add_argument("-numhalofiles",\
+my_parser.add_argument("-num_chunks",\
 	action="store",\
 	type=int,\
-	help="Number of halo_info files per output time",\
+	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
 	default=16)
 my_parser.add_argument("-num_cores",\
 	action="store",\
@@ -71,7 +71,7 @@ end_snap     = None
 
 # Slice spacing to build tree for
 dn = 1
-file_nchunks = args.numhalofiles
+file_nchunks = args.num_chunks
 
 # The following parameters probably shouldn't be changed
 
@@ -85,6 +85,10 @@ ntagmin  = 5
 lowlim   = int(mfrac*ntagmin)
 # Threshold halo mass for building tree of proximate massive haloes ( needed for search_rad parameter)
 massive_threshold = 1e14
+# Maximum number of neighbours to search through
+num_neigh = 300
+# Upper bound distance to search for neighbours
+search_rad = 4.0
 
 # Output name
 
@@ -131,6 +135,9 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 
 	progs = []
 
+	if (np.all(neigh == len(mhalo_next))):
+		mainProgArray[halo_index]  = -999
+		return [0]
 	if neigh[0] == -999:
 		mainProgArray[halo_index]  = -999
 		return [0]
@@ -153,6 +160,9 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 	for	j in range(len(neigh)):
 
 		idx_this_cand  = neigh[j]
+
+		if (idx_this_cand == len(mhalo_next)):
+			break # No object after this will be eligible
 
 		if (ntag_next[idx_this_cand] == 0) or (ntag_next[idx_this_cand] <= lowlim):
 			continue
@@ -202,6 +212,9 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 
 	halo_index = mask_eligible[iter]
 
+	if (np.all(neigh == len(mhalo_dnext))):
+		dmainProgArray[halo_index]  = -999
+		return [0]
 	if neigh[0] == -999:
 		dmainProgArray[halo_index]  = -999
 		return
@@ -223,6 +236,9 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 	for	j in range(len(neigh)):
 
 		idx_this_cand  = neigh[j]
+
+		if (idx_this_cand == len(mhalo_dnext)):
+			break # No object after this will be eligible
 		if (ntag_dnext[idx_this_cand] == 0) or (ntag_dnext[idx_this_cand] <= lowlim):
 			continue
 
@@ -454,7 +470,7 @@ for jj in range(len(steps)-1):
 			tree_build_time += tbuild
 
 		mask_eligible = np.where( (nphalo >= npmin) & (ntag >= ntagmin) )[0]
-
+		'''
 		# Find out which haloes in current timestep are close to a massive cluster. These objects
 		# need an especially large search_rad
 		print("Building tree 3 of 3.")
@@ -483,7 +499,7 @@ for jj in range(len(steps)-1):
 		search_rad[search_rad>3.0] = 3.0
 		search_rad[search_rad<2.0] = 2.0
 		search_rad[objs_with_massive_neighbour] = r100[mhalo>=massive_threshold][indx[objs_with_massive_neighbour]] * 4.0
-
+		'''
 		if num_cores == 1:
 			sort_index    = np.argsort(ntag[mask_eligible])[::-1]
 			mask_eligible = mask_eligible[sort_index]
@@ -491,7 +507,8 @@ for jj in range(len(steps)-1):
 		# Now, we need to find the list of neighbours in the next_output step
 		t_query_1  = time.time()
 		#neighbours = tree_original.query_ball_tree(tree, r = search_rad, eps = 0.1)
-		neighbours = tree.query_ball_point(pos[mask_eligible]+half_box, r = search_rad, return_sorted = True)
+		#neighbours = tree.query_ball_point(pos[mask_eligible]+half_box, r = search_rad, return_sorted = True)
+		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, n_jobs = -1)[1]
 		t_query_2  = time.time()
 		tquery     = t_query_2-t_query_1
 		print("Took %4.2fs to query all neighbours."%(tquery))
@@ -504,7 +521,8 @@ for jj in range(len(steps)-1):
 			sys.stdout.flush()
 			t_query_1   = time.time()
 			#dneighbours = tree_original.query_ball_tree(tree_dnext, r = 0.5*search_rad, eps = 0.1)
-			dneighbours = tree_dnext.query_ball_point(pos[mask_eligible]+half_box, r = 2.0, return_sorted = True)
+			#dneighbours = tree_dnext.query_ball_point(pos[mask_eligible]+half_box, r = 2.0, return_sorted = True)
+			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = 0.5*search_rad, k = 30, n_jobs = -1)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))
@@ -585,7 +603,7 @@ for jj in range(len(steps)-1):
 
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
-		output_file.write_to(odir + "associations_z%3.2f.%d.asdf"%(z, ifile_counter))
+		output_file.write_to(odir + "test_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
 		t1 = time.time()
