@@ -188,12 +188,12 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 			pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
 			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
-			if (pids_frac_cand >= mfrac) or (pids_frac_this >= mfrac):
+			if weighted_count > ncontr_max:
+				ncontr_max   = weighted_count#len(mask)
+				id_contr_max = indxx_next[idx_this_cand]
+				frac_now     = pids_frac_cand
+			if (pids_frac_cand >= mfrac):
 				progs.append(indxx_next[idx_this_cand])
-				if weighted_count > ncontr_max:
-					ncontr_max   = weighted_count#len(mask)
-					id_contr_max = indxx_next[idx_this_cand]
-					frac_now     = pids_frac_cand
 
 		# Remove matched particles
 		ids_this_halo = np.delete(ids_this_halo, mask)
@@ -254,17 +254,21 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		ptr[ptr<0]      = 0
 		mask            = np.where(ids_tmp_cand[ptr] == ids_this_halo)[0]
 
+		#print(len(mask), indxx_dnext[idx_this_cand], '%3.2e'%mhalo_dnext[idx_this_cand], mhalo[halo_index]/mhalo_dnext[idx_this_cand])
+
 		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 
 		if not len(mask) == 0:
 			pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
-			if (pids_frac_cand >= mfrac) or (pids_frac_this >= mfrac):
-				if weighted_count > ncontr_max:
-					ncontr_max   = weighted_count#len(mask)
-					id_contr_max = indxx_dnext[idx_this_cand]
-					frac_now     = pids_frac_cand
+			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
+			#if (pids_frac_cand >= mfrac) or (pids_frac_this >= mfrac):
+			if weighted_count > ncontr_max:
+				ncontr_max   = weighted_count#len(mask)
+				id_contr_max = indxx_dnext[idx_this_cand]
+				frac_now     = pids_frac_cand
+			#print(id_contr_max, ncontr_max)
 
 		# Remove matched particles
 		ids_this_halo = np.delete(ids_this_halo, mask)
@@ -605,6 +609,7 @@ for jj in range(len(steps)-1):
 		output_file = asdf.AsdfFile(data_tree)
 		output_file.write_to(odir + "test_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
+                del neighbours, dneighbours
 
 		t1 = time.time()
 		print("Total write time: %4.2fs"%(t1-t0))
