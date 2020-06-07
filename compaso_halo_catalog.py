@@ -187,7 +187,7 @@ except:
     # Note: this is a temporary solution until blosc is integrated into ASDF, or until we package a pluggable decompressor
     exit('Error: your ASDF installation does not support Blosc compression.  Please install the fork with Blosc support with the following command: "pip install git+https://github.com/lgarrison/asdf.git"')
 
-from .bitpacked import unpack_rvint, unpack_pids, AUXPID
+from bitpacked import unpack_rvint, unpack_pids, AUXPID
 
 class CompaSOHaloCatalog:
     """
