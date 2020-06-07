@@ -609,7 +609,7 @@ for jj in range(len(steps)-1):
 		output_file = asdf.AsdfFile(data_tree)
 		output_file.write_to(odir + "test_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
-                del neighbours, dneighbours
+		del neighbours, dneighbours
 
 		t1 = time.time()
 		print("Total write time: %4.2fs"%(t1-t0))
