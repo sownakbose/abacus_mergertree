@@ -199,7 +199,7 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		ids_this_halo = np.delete(ids_this_halo, mask)
 		rho_this_halo = np.delete(rho_this_halo, mask)
 
-		if (len(ids_this_halo) <= lowlim):
+		if (len(ids_this_halo) < lowlim):
 			break
 
 	mainProgArray[halo_index]     = id_contr_max
