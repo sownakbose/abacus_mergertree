@@ -134,7 +134,8 @@ if len(outputs_now) > 0:
 	ichunk_now = int( file_last.split(".")[-2] )
 	# Get the snapshots in the total list of steps
 	snapList   = sorted([float(sub.split("z")[-1][-5:]) for sub in steps])
-	arg        = np.argmin(abs( snapList-znow ))
+	snapList   = np.array(snapList)
+	arg        = np.argmin(abs( snapList-z_now ))
 	steps      = steps[arg:]
 	print("Found existing outputs in %s! Will resume calculation from z = %4.3f, superslab number %d."\
 		%(odir, z_now, ichunk_now))
