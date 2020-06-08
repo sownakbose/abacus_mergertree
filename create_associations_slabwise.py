@@ -120,6 +120,26 @@ steps    = steps[:end_snap]
 stepsAll = steps[::dn]
 steps    = stepsAll[start_snap:]
 
+# Let's check if there are already outputs in this directory
+outputs_now = glob.glob(odir + "subtest_associations*.asdf")
+
+if len(outputs_now) > 0:
+
+	restart    = True
+	# Get time-ordered list of existing outputs
+	outputs_now.sort(key = os.path.getmtime)
+	file_last  = outputs_now[-1]
+	# Get the snapshot of the last output
+	z_now      = float( file_last.split("z")[-1][:-8] )
+	ichunk_now = int( file_last.split(".")[-2] )
+	# Get the snapshots in the total list of steps
+	snapList   = sorted([float(sub.split("z")[-1][-5:]) for sub in steps])
+	arg        = np.argmin(abs( snapList-znow ))
+	steps      = steps[arg:]
+	print("Found existing outputs in %s! Will resume calculation from z = %4.3f, superslab number %d."\
+		%(odir, z_now, ichunk_now))
+	sys.stdout.flush()
+
 # Routine for looping through candidate haloes and matching IDs
 
 read_time       = 0.0
@@ -352,7 +372,14 @@ for jj in range(len(steps)-1):
 
 	# First, get the list of halo files in this output step
 	step_list  = sorted(glob.glob(step + "/halo_info/halo_info*"))
+
+	# If we are restarting, trim this list
+	if (is_first_step) and (restart):
+		step_list = step_list[ichunk_now+1:]
+
 	num_files  = len(step_list)
+	if file_nchunks > num_files:
+		file_nchunks = num_files
 	chunk_list = np.array_split(step_list, file_nchunks)
 
 	# Next, get the list of halo files in the next_output
@@ -614,7 +641,7 @@ for jj in range(len(steps)-1):
 
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
-		output_file.write_to(odir + "subtest_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
+		output_file.write_to(odir + "subtest_associations_z%4.3f.%d.asdf"%(z, ifile_counter))
 
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
