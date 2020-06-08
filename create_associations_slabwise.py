@@ -526,7 +526,7 @@ for jj in range(1):
 			t_query_1   = time.time()
 			#dneighbours = tree_original.query_ball_tree(tree_dnext, r = 0.5*search_rad, eps = 0.1)
 			#dneighbours = tree_dnext.query_ball_point(pos[mask_eligible]+half_box, r = 2.0, return_sorted = True)
-			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = 0.5*search_rad, k = int(num_neigh/5), n_jobs = -1)[1]
+			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = 75, n_jobs = -1)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))
