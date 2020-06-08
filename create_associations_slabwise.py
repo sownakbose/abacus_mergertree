@@ -205,7 +205,9 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray):
 	mainProgArray[halo_index]     = id_contr_max
 	mainProgFracArray[halo_index] = frac_now
 
-	if not id_contr_max in progs:
+	# If we have successfully identified a main progenitors, but it is not contained in the
+	# list of progenitors, this is likely a split halo
+	if (id_contr_max > 0) and (id_contr_max not in progs):
 		isSplitArray[halo_index]  = 1
 
 	return progs
