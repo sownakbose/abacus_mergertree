@@ -324,8 +324,8 @@ def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray):
 start_time = time.time()
 
 # Being loop over timesteps
-#for jj in range(len(steps)-1):
-for jj in range(1):
+for jj in range(len(steps)-1):
+#for jj in range(1):
 
 	print("Step %d of %d"%(jj+1,len(steps)-1))
 	sys.stdout.flush()
