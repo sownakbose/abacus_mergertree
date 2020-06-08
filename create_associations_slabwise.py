@@ -129,7 +129,7 @@ tree_query_time = 0.0
 loop_time       = 0.0
 
 @jit(nopython=True, fastmath=True)
-def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
+def surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray):
 
 	halo_index   = mask_eligible[iter]
 
@@ -204,6 +204,9 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 
 	mainProgArray[halo_index]     = id_contr_max
 	mainProgFracArray[halo_index] = frac_now
+
+	if not id_contr_max in progs:
+		isSplitArray[halo_index]  = 1
 
 	return progs
 
@@ -284,16 +287,16 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 	return
 
 # Master function that executes both surf_halo and surf_halo_dnext
-def surf_halo_tot(iter, counter, mainProgArray, mainProgFracArray, dmainProgArray, dmainProgFracArray):
+def surf_halo_tot(iter, counter, mainProgArray, mainProgFracArray, isSplitArray, dmainProgArray, dmainProgFracArray):
 
 		# Define neigh and dneigh here!!
 		neigh  = neighbours[counter]
 		dneigh = dneighbours[counter]
 
 		try:
-			progenitors = surf_halo(iter, neigh, mainProgArray, mainProgFracArray)
+			progenitors = surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray)
 		except ValueError:
-			progenitors = surf_halo(iter, [-999], mainProgArray, mainProgFracArray)#[0]
+			progenitors = surf_halo(iter, [-999], mainProgArray, mainProgFracArray, isSplitArray)#[0]
 
 		if len(progenitors)==0:
 			progenitors = [0]
@@ -306,14 +309,14 @@ def surf_halo_tot(iter, counter, mainProgArray, mainProgFracArray, dmainProgArra
 		return progenitors
 
 # Master function for final step of associations code when only surf_halo needs to be run
-def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray):
+def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray, isSplitArray):
 
 	neigh = neighbours[counter]
 
 	try:
-		progenitors = surf_halo(iter, neigh, mainProgArray, mainProgFracArray)
+		progenitors = surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray)
 	except ValueError:
-		progenitors = surf_halo(iter, [-999], mainProgArray, mainProgFracArray)#[0]
+		progenitors = surf_halo(iter, [-999], mainProgArray, mainProgFracArray, isSplitArray)#[0]
 
 	if len(progenitors)==0:
 		progenitors = [0]
@@ -538,13 +541,14 @@ for jj in range(len(steps)-1):
 		folder      = tempfile.mkdtemp()
 		mpc_name    = os.path.join(folder, "mpc")
 		mpfc_name   = os.path.join(folder, "mpfc")
-		desc_name   = os.path.join(folder, "desc")
+		split_name  = os.path.join(folder, "split")
 
 		dmpc_name  = os.path.join(folder, "dmpc")
 		dmpfc_name = os.path.join(folder, "dmpfc")
 
 		MAIN_PROG     = np.memmap(mpc_name, "int", shape = len(mhalo), mode = "w+")
 		MPMATCH_FRAC  = np.memmap(mpfc_name, "float", shape = len(mhalo), mode = "w+")
+		IS_SPLIT      = np.memmap(split_name, "int", shape = len(mhalo), mode = "w+")
 
 		DMAIN_PROG    = np.memmap(dmpc_name, "int", shape = len(mhalo), mode = "w+")
 		DMPMATCH_FRAC = np.memmap(dmpfc_name, "float", shape = len(mhalo), mode = "w+")
@@ -566,11 +570,11 @@ for jj in range(len(steps)-1):
 
 		if do_dnext:
 			with Parallel(n_jobs = num_cores, batch_size = batch_size, pre_dispatch = pre_dispatch, backend = "multiprocessing") as parallel:
-				PROG_INDX = parallel(delayed(surf_halo_tot)(i, counter, MAIN_PROG, MPMATCH_FRAC, DMAIN_PROG, DMPMATCH_FRAC) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
+				PROG_INDX = parallel(delayed(surf_halo_tot)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT, DMAIN_PROG, DMPMATCH_FRAC) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
 
 		else:
 			with Parallel(n_jobs = num_cores, batch_size = batch_size, pre_dispatch = pre_dispatch, backend = "multiprocessing") as parallel:
-				PROG_INDX = parallel(delayed(surf_halo_final)(i, counter, MAIN_PROG, MPMATCH_FRAC) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
+				PROG_INDX = parallel(delayed(surf_halo_final)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
 
 		t_loop_finish = time.time()
 		loop_time += (t_loop_finish-t_loop_start)
@@ -596,6 +600,7 @@ for jj in range(len(steps)-1):
 		"HaloVmax": vmax,
 		"Position": pos,
 		"IsAssociated": IS_ASSOC,
+		"IsPotentialSplit": IS_SPLIT,
 		"Progenitors": PROG_INDX_OUT,
 		"NumProgenitors": NUM_PROG,
 		"MainProgenitor": MAIN_PROG,
@@ -608,8 +613,13 @@ for jj in range(len(steps)-1):
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
 		output_file.write_to(odir + "subtest_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
-		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
-		del neighbours, dneighbours
+
+		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
+
+		if do_dnext:
+			del neighbours, dneighbours
+		else:
+			del neighbours
 
 		t1 = time.time()
 		print("Total write time: %4.2fs"%(t1-t0))
