@@ -185,7 +185,7 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 		if not len(mask) == 0:
-			pids_frac_this = len(mask) / float(nump_this_halo)
+			#pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
 			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
 			if weighted_count > ncontr_max:
@@ -199,8 +199,8 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray):
 		ids_this_halo = np.delete(ids_this_halo, mask)
 		rho_this_halo = np.delete(rho_this_halo, mask)
 
-		#if (len(ids_this_halo) <= lowlim):
-		#	break
+		if (len(ids_this_halo) <= lowlim):
+			break
 
 	mainProgArray[halo_index]     = id_contr_max
 	mainProgFracArray[halo_index] = frac_now
@@ -260,7 +260,7 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		weighted_count = np.sum(rho_this_halo[mask])
 
 		if not len(mask) == 0:
-			pids_frac_this = len(mask) / float(nump_this_halo)
+			#pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
 			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
 			#if (pids_frac_cand >= mfrac) or (pids_frac_this >= mfrac):
@@ -276,7 +276,7 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 
 		# Since we're only interested in the main progenitor in the dnext step,
 		# we need only look through a few candidates at most
-		if (np.sum(rho_this_halo) < 0.5*rho_initial):
+		if (np.sum(rho_this_halo) < 0.4*rho_initial):
 			break
 
 	dmainProgArray[halo_index]     = id_contr_max
@@ -324,8 +324,8 @@ def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray):
 start_time = time.time()
 
 # Being loop over timesteps
-for jj in range(len(steps)-1):
-#for jj in range(1):
+#for jj in range(len(steps)-1):
+for jj in range(1):
 
 	print("Step %d of %d"%(jj+1,len(steps)-1))
 	sys.stdout.flush()
@@ -526,7 +526,7 @@ for jj in range(len(steps)-1):
 			t_query_1   = time.time()
 			#dneighbours = tree_original.query_ball_tree(tree_dnext, r = 0.5*search_rad, eps = 0.1)
 			#dneighbours = tree_dnext.query_ball_point(pos[mask_eligible]+half_box, r = 2.0, return_sorted = True)
-			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = 0.5*search_rad, k = 30, n_jobs = -1)[1]
+			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = 0.5*search_rad, k = int(num_neigh/5), n_jobs = -1)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))
@@ -607,7 +607,7 @@ for jj in range(len(steps)-1):
 
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
-		output_file.write_to(odir + "test_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
+		output_file.write_to(odir + "subtest_associations_z%3.2f.%d.asdf"%(z, ifile_counter))
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 		del neighbours, dneighbours
 
