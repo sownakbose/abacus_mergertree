@@ -137,8 +137,8 @@ if len(outputs_now) > 0:
 	snapList   = np.array(snapList)
 	arg        = np.argmin(abs( snapList-z_now ))
 	steps      = steps[arg:]
-	print("Found existing outputs in %s! Will resume calculation from z = %4.3f, superslab number %d."\
-		%(odir, z_now, ichunk_now))
+	print("Found existing outputs in %s! Will resume calculation from z=%4.3f, superslab number %d."\
+		%(odir, z_now, ichunk_now+1))
 	sys.stdout.flush()
 
 # Routine for looping through candidate haloes and matching IDs
