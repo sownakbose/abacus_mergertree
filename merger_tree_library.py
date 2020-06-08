@@ -52,7 +52,6 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 				ntagB    = cat.halos[:]["npoutB"].data
 				pos      = cat.halos[:]["x_L2com"].data
 				vmax     = cat.halos[:]["vcirc_max_L2com"].data
-				r100     = cat.halos[:]["r100_L2com"].data
 				nphalo   = cat.halos[:]["N"].data
 				numhalos = cat.numhalos
 				ntag     = ntagA + ntagB
@@ -109,12 +108,12 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 		if not "slabwise" in halo_type:
 			return cat.header, box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
 		else:
-			return cat.header, box, nslice, z, numhalos, nphalo, mhalo, pos, r100, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+			return cat.header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
 	else:
 		if not "slabwise" in halo_type:
 			return box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
 		else:
-			return box, nslice, z, numhalos, nphalo, mhalo, pos, r100, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+			return box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
 
 # It's probably worth giving these haloes a unique identifier
 

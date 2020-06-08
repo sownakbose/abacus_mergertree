@@ -351,7 +351,7 @@ class CompaSOHaloCatalog:
         if load_fields == 'all':
             fields = list(afs[0][self.data_key].keys())
         elif load_fields == 'merger':
-            fields = ['npstartA', 'npstartB', 'npoutA', 'npoutB', 'N', 'x_L2com', 'vcirc_max_L2com', 'r100_L2com']
+            fields = ['npstartA', 'npstartB', 'npoutA', 'npoutB', 'N', 'x_L2com', 'vcirc_max_L2com']
 
         # Make an empty table for the concatenated, unpacked values
         # Note that np.empty is being smart here and creating 2D arrays when the dtype is a vector
@@ -432,7 +432,7 @@ class CompaSOHaloCatalog:
             else:
 
                 for com in ['_L2com']:
-                    halos['r100'+com][:] = rawhalos['r100'+com]*box
+                    #halos['r100'+com][:] = rawhalos['r100'+com]*box
                     halos['x'+com][:] = rawhalos['x'+com]*box
                     halos['vcirc_max'+com][:] = rawhalos['vcirc_max'+com]*zspace_to_kms
 
@@ -764,7 +764,6 @@ user_dt_merger = np.dtype([
                     ('N', np.uint32),
                     ('x_L2com', np.float32, 3),
                     ('vcirc_max_L2com', np.float32),
-                    ('r100_L2com', np.float32),
 ], align=True)
 
 

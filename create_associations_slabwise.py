@@ -369,10 +369,10 @@ for jj in range(1):
 		# Begin reading halo_info files and 10% subsamples
 		t_read_0 = time.time()
 		if ifile_counter == 0:
-			header, box, nslice, z, numhalos, nphalo, mhalo, pos, r100, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = True)
+			header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = True)
 			z = header["Redshift"]
 		else:
-			box, nslice, z, numhalos, nphalo, mhalo, pos, r100, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = False)
+			box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = False)
 		t_read_1 = time.time()
 
 		read_time += (t_read_1 - t_read_0)
@@ -405,7 +405,7 @@ for jj in range(1):
 
 		# Read the halo_info files and 10% subsamples
 		t_read_0 = time.time()
-		box, nslice_next, z_next, numhalos_next, nphalo_next, mhalo_next, pos_next, r100_next, vmax_next, nstartA_next, ntagA_next, nstartB_next, ntagB_next, ntag_next, pids_next, rho_next = read_halo_catalogue(search_list_next, halo_type, return_header = False)
+		box, nslice_next, z_next, numhalos_next, nphalo_next, mhalo_next, pos_next, vmax_next, nstartA_next, ntagA_next, nstartB_next, ntagB_next, ntag_next, pids_next, rho_next = read_halo_catalogue(search_list_next, halo_type, return_header = False)
 		t_read_1 = time.time()
 
 		read_time += (t_read_1 - t_read_0)
@@ -449,7 +449,7 @@ for jj in range(1):
 
 			# Read in the halo_info files
 			t_read_0 = time.time()
-			box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, r100_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext = read_halo_catalogue(search_list_dnext, halo_type, return_header = False)
+			box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext = read_halo_catalogue(search_list_dnext, halo_type, return_header = False)
 			t_read_1 = time.time()
 
 			read_time += (t_read_1 - t_read_0)
