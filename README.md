@@ -1,7 +1,7 @@
-# abacus_mergertree
-Code to develop halo associations between Abacus timeslices.
+# abacus_mergertree Code to develop halo associations between
+timeslices output by the ``abacus`` N-body code.
 
-This code has a few non-standard dependencies, including
+This code has a few non-standard dependencies, including:
 
 * `numba`
 * `joblib`
