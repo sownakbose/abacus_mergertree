@@ -83,8 +83,6 @@ npmin    = 50
 ntagmin  = 5
 # Minimum number of subsampled particles a halo needs to have to be considered a matching candidate
 lowlim   = int(mfrac*ntagmin)
-# Threshold halo mass for building tree of proximate massive haloes ( needed for search_rad parameter)
-massive_threshold = 1e14
 # Maximum number of neighbours to search through
 num_neigh = 250
 # Upper bound distance to search for neighbours
@@ -230,7 +228,7 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray):
 	mainProgArray[halo_index]     = id_contr_max
 	mainProgFracArray[halo_index] = frac_now
 
-	# If we have successfully identified a main progenitors, but it is not contained in the
+	# If we have successfully identified a main progenitor, but it is not contained in the
 	# list of progenitors, this is likely a split halo
 	if (id_contr_max > 0) and (id_contr_max not in progs):
 		isSplitArray[halo_index]  = 1
