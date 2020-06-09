@@ -379,9 +379,10 @@ for jj in range(len(steps)-1):
 		step_list = step_list[ichunk_now+1:]
 
 	num_files  = len(step_list)
-	if file_nchunks > num_files:
-		file_nchunks = num_files
-	chunk_list = np.array_split(step_list, file_nchunks)
+	if (is_first_step) and (file_nchunks > num_files):
+		chunk_list = np.array_split(step_list, num_files)
+	else:
+		chunk_list = np.array_split(step_list, file_nchunks)
 
 	# Next, get the list of halo files in the next_output
 	step_next_list = sorted(glob.glob(step_next + "/halo_info/halo_info*"))
