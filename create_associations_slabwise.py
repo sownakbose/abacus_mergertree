@@ -47,6 +47,11 @@ my_parser.add_argument("-num_chunks",\
 	type=int,\
 	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
 	default=34)
+my_parser.add_argument("-num_slabs_todo",\
+	action="store",\
+	type=int,\
+	help="Choose to do only a subset of the associations in a given snapshot. Useful for testing. -num_slabs_todo=-1 does the full calculation",\
+	default=-1)
 my_parser.add_argument("-num_cores",\
 	action="store",\
 	type=int,\
@@ -72,6 +77,7 @@ end_snap     = None
 # Slice spacing to build tree for
 dn = 1
 file_nchunks = args.num_chunks
+num_slabs    = args.num_slabs_todo
 
 # The following parameters probably shouldn't be changed
 
@@ -369,17 +375,26 @@ for jj in range(len(steps)-1):
 	# First, get the list of halo files in this output step
 	step_list  = sorted(glob.glob(step + "/halo_info/halo_info*"))
 
-	# If we are restarting, trim this list
+	num_files  = len(step_list)
+
+	if (file_nchunks > num_files):
+		file_nchunks = num_files
+
+	# If we are restarting, index into the new starting point
 	if (is_first_step) and (restart):
 		ichunk_start = ichunk_now+1
 	else:
 		ichunk_start = 0
 
-	num_files  = len(step_list)
-	if (is_first_step) and (file_nchunks > num_files):
-		chunk_list = np.array_split(step_list, num_files)
+	if (num_slabs != -1):
+		ichunk_finish = ichunk_start + num_slabs
 	else:
-		chunk_list = np.array_split(step_list, file_nchunks)
+		ichunk_finish = file_nchunks
+
+	if (ichunk_finish > file_nchunks):
+		ichunk_finish = file_nchunks
+
+	chunk_list = np.array_split(step_list, file_nchunks)
 
 	# Next, get the list of halo files in the next_output
 	step_next_list = sorted(glob.glob(step_next + "/halo_info/halo_info*"))
@@ -392,7 +407,7 @@ for jj in range(len(steps)-1):
 
 	t_step_start = time.time()
 
-	for ifile_counter in range(ichunk_start, file_nchunks):
+	for ifile_counter in range(ichunk_start, ichunk_finish):
 
 		file_num_min = int(chunk_list[ifile_counter][0][-8:-5]) # Remove the .asdf trailing at the end
 		file_num_max = int(chunk_list[ifile_counter][-1][-8:-5])
