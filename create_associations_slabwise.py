@@ -124,7 +124,6 @@ steps    = stepsAll[start_snap:]
 outputs_now = glob.glob(odir + "associations*.asdf")
 
 if len(outputs_now) > 0:
-
 	restart    = True
 	# Get time-ordered list of existing outputs
 	outputs_now.sort(key = os.path.getmtime)
@@ -139,6 +138,11 @@ if len(outputs_now) > 0:
 	steps      = steps[arg:]
 	print("Found existing outputs in %s! Will resume calculation from z=%4.3f, superslab number %d."\
 		%(odir, z_now, ichunk_now+1))
+	sys.stdout.flush()
+
+else:
+	restart    = False
+	print("No existing outputs found in %s; beginning calculation from scratch."%(odir))
 	sys.stdout.flush()
 
 # Routine for looping through candidate haloes and matching IDs
