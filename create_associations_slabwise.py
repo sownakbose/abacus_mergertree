@@ -123,6 +123,7 @@ steps    = stepsAll[start_snap:]
 # Let's check if there are already outputs in this directory
 outputs_now = glob.glob(odir + "associations*.asdf")
 
+# If there are, update the starting point of the calculation to reflect last outputs
 if len(outputs_now) > 0:
 	restart    = True
 	# Get time-ordered list of existing outputs
@@ -208,14 +209,10 @@ def surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray):
 		ptr[ptr<0]      = 0
 		mask            = np.where(ids_tmp_cand[ptr] == ids_this_halo)[0]
 
-		#print(len(mask), indxx_next[idx_this_cand], '%3.2e'%mhalo_next[idx_this_cand], mhalo[halo_index]/mhalo_next[idx_this_cand])
-
 		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 		if not len(mask) == 0:
-			#pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
-			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
 			if weighted_count > ncontr_max:
 				ncontr_max   = weighted_count#len(mask)
 				id_contr_max = indxx_next[idx_this_cand]
@@ -287,21 +284,15 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 		ptr[ptr<0]      = 0
 		mask            = np.where(ids_tmp_cand[ptr] == ids_this_halo)[0]
 
-		#print(len(mask), indxx_dnext[idx_this_cand], '%3.2e'%mhalo_dnext[idx_this_cand], mhalo[halo_index]/mhalo_dnext[idx_this_cand])
-
 		# The contribution of this candidate is the number of matched particles weighted by density
 		weighted_count = np.sum(rho_this_halo[mask])
 
 		if not len(mask) == 0:
-			#pids_frac_this = len(mask) / float(nump_this_halo)
 			pids_frac_cand = len(mask) / float(len(ids_tmp_cand))
-			#print(len(mask), pids_frac_this, pids_frac_cand, weighted_count)
-			#if (pids_frac_cand >= mfrac) or (pids_frac_this >= mfrac):
 			if weighted_count > ncontr_max:
 				ncontr_max   = weighted_count#len(mask)
 				id_contr_max = indxx_dnext[idx_this_cand]
 				frac_now     = pids_frac_cand
-			#print(id_contr_max, ncontr_max)
 
 		# Remove matched particles
 		ids_this_halo = np.delete(ids_this_halo, mask)
@@ -358,7 +349,6 @@ start_time = time.time()
 
 # Being loop over timesteps
 for jj in range(len(steps)-1):
-#for jj in range(1):
 
 	print("Step %d of %d"%(jj+1,len(steps)-1))
 	sys.stdout.flush()
@@ -383,7 +373,6 @@ for jj in range(len(steps)-1):
 
 	# If we are restarting, trim this list
 	if (is_first_step) and (restart):
-		#step_list = step_list[ichunk_now+1:]
 		ichunk_start = ichunk_now+1
 	else:
 		ichunk_start = 0
@@ -517,44 +506,13 @@ for jj in range(len(steps)-1):
 			tree_build_time += tbuild
 
 		mask_eligible = np.where( (nphalo >= npmin) & (ntag >= ntagmin) )[0]
-		'''
-		# Find out which haloes in current timestep are close to a massive cluster. These objects
-		# need an especially large search_rad
-		print("Building tree 3 of 3.")
-		sys.stdout.flush()
-		t_build_1     = time.time()
-		tree_massive  = cKDTree(pos[mhalo>=massive_threshold]+half_box, boxsize=box+1e-6, compact_nodes = False, balanced_tree = False)
-		#tree_original = cKDTree(pos[mask_eligible]+half_box, boxsize=box+1e-6, compact_nodes = False, balanced_tree = False)
-		t_build_2     = time.time()
-		tbuild        = t_build_2-t_build_1
-		print("Tree build time: %4.2fs"%(tbuild))
-		sys.stdout.flush()
 
-		tree_build_time += tbuild
-
-		t_query_1  = time.time()
-		dist, indx = tree_massive.query(pos[mask_eligible]+half_box, k = 1, distance_upper_bound = 3.5, n_jobs = -1)
-		t_query_2  = time.time()
-		tquery     = t_query_2-t_query_1
-		print("Took %4.2fs to query all neighbours."%(tquery))
-		sys.stdout.flush()
-
-		objs_with_massive_neighbour = np.isfinite(dist)
-
-		# Build the array of search_rad
-		search_rad                 = r100[mask_eligible] * 4.0
-		search_rad[search_rad>3.0] = 3.0
-		search_rad[search_rad<2.0] = 2.0
-		search_rad[objs_with_massive_neighbour] = r100[mhalo>=massive_threshold][indx[objs_with_massive_neighbour]] * 4.0
-		'''
 		if num_cores == 1:
 			sort_index    = np.argsort(ntag[mask_eligible])[::-1]
 			mask_eligible = mask_eligible[sort_index]
 
 		# Now, we need to find the list of neighbours in the next_output step
 		t_query_1  = time.time()
-		#neighbours = tree_original.query_ball_tree(tree, r = search_rad, eps = 0.1)
-		#neighbours = tree.query_ball_point(pos[mask_eligible]+half_box, r = search_rad, return_sorted = True)
 		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, n_jobs = -1)[1]
 		t_query_2  = time.time()
 		tquery     = t_query_2-t_query_1
@@ -567,8 +525,6 @@ for jj in range(len(steps)-1):
 			print("Finding neighbours for subsequent catalogue.")
 			sys.stdout.flush()
 			t_query_1   = time.time()
-			#dneighbours = tree_original.query_ball_tree(tree_dnext, r = 0.5*search_rad, eps = 0.1)
-			#dneighbours = tree_dnext.query_ball_point(pos[mask_eligible]+half_box, r = 2.0, return_sorted = True)
 			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = 75, n_jobs = -1)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
@@ -597,16 +553,6 @@ for jj in range(len(steps)-1):
 		IS_ASSOC[mask_eligible] = 1
 
 		t_loop_start  = time.time()
-
-		'''
-		t_sort_start = time.time()
-		sort_next  = np.argsort(pids_next)
-		sort_dnext = np.argsort(pids_dnext)
-		pids_next_sorted  = pids_next[sort_next]
-		pids_dnext_sorted = pids_dnext[sort_next]
-		t_sort_end = time.time()
-		print("PID sorting took: %4.2fs"%(t_sort_end-t_sort_start))
-		'''
 
 		if do_dnext:
 			with Parallel(n_jobs = num_cores, batch_size = batch_size, pre_dispatch = pre_dispatch, backend = "multiprocessing") as parallel:
