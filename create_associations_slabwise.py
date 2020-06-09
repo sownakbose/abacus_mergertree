@@ -121,7 +121,7 @@ stepsAll = steps[::dn]
 steps    = stepsAll[start_snap:]
 
 # Let's check if there are already outputs in this directory
-outputs_now = glob.glob(odir + "subtest_associations*.asdf")
+outputs_now = glob.glob(odir + "associations*.asdf")
 
 if len(outputs_now) > 0:
 
@@ -643,7 +643,7 @@ for jj in range(len(steps)-1):
 
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
-		output_file.write_to(odir + "subtest_associations_z%4.3f.%d.asdf"%(z, ifile_counter))
+		output_file.write_to(odir + "associations_z%4.3f.%d.asdf"%(z, ifile_counter))
 
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
