@@ -41,12 +41,12 @@ my_parser.add_argument("-simname",\
 	action="store",\
 	type=str,\
 	help="Simulation name",\
-	default="AbacusSummit_highbase_c000_ph100")
+	default="AbacusSummit_base_c000_ph006")
 my_parser.add_argument("-num_chunks",\
 	action="store",\
 	type=int,\
 	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
-	default=16)
+	default=34)
 my_parser.add_argument("-num_cores",\
 	action="store",\
 	type=int,\
@@ -56,7 +56,7 @@ my_parser.add_argument("-outputdir",\
 	action="store",\
 	type=str,\
 	help="Path to where the associations outputs will be saved",\
-	default="../data/")
+	default="/mnt/store/sbose/")
 
 args = my_parser.parse_args()
 
@@ -135,9 +135,12 @@ if len(outputs_now) > 0:
 	snapList   = sorted([float(sub.split("z")[-1][-5:]) for sub in steps])
 	snapList   = np.array(snapList)
 	arg        = np.argmin(abs( snapList-z_now ))
+	if (ichunk_now+1 == file_nchunks):
+		arg       += 1 # This step is complete, start from the next one
+		ichunk_now = -1
 	steps      = steps[arg:]
 	print("Found existing outputs in %s! Will resume calculation from z=%4.3f, superslab number %d."\
-		%(odir, z_now, ichunk_now+1))
+		%(odir, snapList[arg], ichunk_now+1))
 	sys.stdout.flush()
 
 else:
@@ -380,7 +383,10 @@ for jj in range(len(steps)-1):
 
 	# If we are restarting, trim this list
 	if (is_first_step) and (restart):
-		step_list = step_list[ichunk_now+1:]
+		#step_list = step_list[ichunk_now+1:]
+		ichunk_start = ichunk_now+1
+	else:
+		ichunk_start = 0
 
 	num_files  = len(step_list)
 	if (is_first_step) and (file_nchunks > num_files):
@@ -399,18 +405,17 @@ for jj in range(len(steps)-1):
 
 	t_step_start = time.time()
 
-	for ifile_counter in range(file_nchunks):
+	for ifile_counter in range(ichunk_start, file_nchunks):
 
 		file_num_min = int(chunk_list[ifile_counter][0][-8:-5]) # Remove the .asdf trailing at the end
 		file_num_max = int(chunk_list[ifile_counter][-1][-8:-5])
 
 		# Begin reading halo_info files and 10% subsamples
 		t_read_0 = time.time()
-		if ifile_counter == 0:
-			header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = True)
-			z = header["Redshift"]
-		else:
-			box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = False)
+
+		header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header = True)
+		z = header["Redshift"]
+
 		t_read_1 = time.time()
 
 		read_time += (t_read_1 - t_read_0)
