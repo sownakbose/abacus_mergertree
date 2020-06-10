@@ -42,16 +42,21 @@ my_parser.add_argument("-simname",\
 	type=str,\
 	help="Simulation name",\
 	default="AbacusSummit_base_c000_ph006")
-my_parser.add_argument("-num_chunks",\
+my_parser.add_argument("-num_epochs",\
 	action="store",\
 	type=int,\
-	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
-	default=34)
+	help="Number of epochs to generate associations for",\
+	default=1)
 my_parser.add_argument("-num_slabs_todo",\
 	action="store",\
 	type=int,\
 	help="Choose to do only a subset of the associations in a given snapshot. Useful for testing. -num_slabs_todo=-1 does the full calculation",\
 	default=-1)
+my_parser.add_argument("-num_chunks",\
+	action="store",\
+	type=int,\
+	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
+	default=34)
 my_parser.add_argument("-num_cores",\
 	action="store",\
 	type=int,\
@@ -72,7 +77,7 @@ pre_dispatch = "4*n_jobs"
 batch_size   = "auto"
 halo_type    = "Abacus_slabwise" # "Abacus_FOF" or "Abacus_SO" or "Rockstar" or "Abacus_Cosmos" or "asdf"
 start_snap   = 0
-end_snap     = None
+num_epochs   = args.num_epochs
 
 # Slice spacing to build tree for
 dn = 1
@@ -152,6 +157,7 @@ else:
 	print("No existing outputs found in %s; beginning calculation from scratch."%(odir))
 	sys.stdout.flush()
 
+end_snap = num_epochs+2 # We need to read two additional epochs for matching
 steps    = steps[:end_snap]
 
 # Routine for looping through candidate haloes and matching IDs
@@ -353,9 +359,9 @@ def surf_halo_final(iter, counter, mainProgArray, mainProgFracArray, isSplitArra
 start_time = time.time()
 
 # Being loop over timesteps
-for jj in range(len(steps)-1):
+for jj in range(num_epochs):
 
-	print("Step %d of %d"%(jj+1,len(steps)-1))
+	print("Step %d of %d"%(jj+1, num_epochs))
 	sys.stdout.flush()
 	step      = steps[jj]
 	step_next = steps[jj+1]
@@ -464,7 +470,7 @@ for jj in range(len(steps)-1):
 		indxx_next = indxxHaloSlabwise(nslice_next, numhalos_next, file_ext_nums)
 
 		# Build a tree of halo positions
-		print("Building tree 1 of 3.")
+		print("Building tree 1 of 2.")
 		sys.stdout.flush()
 		t_build_1 = time.time()
 		tree = cKDTree(pos_next+half_box, boxsize=box+1e-6, compact_nodes = False, balanced_tree = False)
@@ -508,7 +514,7 @@ for jj in range(len(steps)-1):
 			indxx_dnext = indxxHaloSlabwise(nslice_dnext, numhalos_dnext, file_ext_nums)
 
 			# Build a tree of halo positions
-			print("Building tree 2 of 3.")
+			print("Building tree 2 of 2.")
 			sys.stdout.flush()
 			t_build_1 = time.time()
 			tree_dnext = cKDTree(pos_dnext+half_box, boxsize=box+1e-6, compact_nodes = False, balanced_tree = False)
