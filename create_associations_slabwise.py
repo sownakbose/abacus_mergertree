@@ -120,7 +120,6 @@ elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type =
 		# List in descending order of redshift already
 		steps  = steps
 
-steps    = steps[:end_snap]
 stepsAll = steps[::dn]
 steps    = stepsAll[start_snap:]
 
@@ -152,6 +151,8 @@ else:
 	restart    = False
 	print("No existing outputs found in %s; beginning calculation from scratch."%(odir))
 	sys.stdout.flush()
+
+steps    = steps[:end_snap]
 
 # Routine for looping through candidate haloes and matching IDs
 
