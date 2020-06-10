@@ -55,8 +55,8 @@ my_parser.add_argument("-num_slabs_todo",\
 my_parser.add_argument("-num_chunks",\
 	action="store",\
 	type=int,\
-	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks= number of halo_info files per snapshot is the single slab-by-slab mode",\
-	default=34)
+	help="Number of chunks to split the processing into. E.g. -num_chunks=4 will read the simulation volume in four chunks. -num_chunks=-1 is the single slab-by-slab mode",\
+	default=-1)
 my_parser.add_argument("-num_cores",\
 	action="store",\
 	type=int,\
@@ -384,7 +384,7 @@ for jj in range(num_epochs):
 
 	num_files  = len(step_list)
 
-	if (file_nchunks > num_files):
+	if (file_nchunks > num_files) or (file_nchunks == -1):
 		file_nchunks = num_files
 
 	# If we are restarting, index into the new starting point
