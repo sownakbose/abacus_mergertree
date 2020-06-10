@@ -125,8 +125,12 @@ elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type =
 		# List in descending order of redshift already
 		steps  = steps
 
-stepsAll = steps[::dn]
-steps    = stepsAll[start_snap:]
+stepsAll  = steps[::dn]
+steps     = stepsAll[start_snap:]
+num_files = len(glob.glob(steps[0] + "/halo_info/halo_info*"))
+
+if (file_nchunks == -1) or (file_nchunks > num_files):
+	file_nchunks = num_files
 
 # Let's check if there are already outputs in this directory
 outputs_now = glob.glob(odir + "associations*.asdf")
@@ -381,11 +385,6 @@ for jj in range(num_epochs):
 
 	# First, get the list of halo files in this output step
 	step_list  = sorted(glob.glob(step + "/halo_info/halo_info*"))
-
-	num_files  = len(step_list)
-
-	if (file_nchunks > num_files) or (file_nchunks == -1):
-		file_nchunks = num_files
 
 	# If we are restarting, index into the new starting point
 	if (is_first_step) and (restart):
