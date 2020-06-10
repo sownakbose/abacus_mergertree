@@ -575,11 +575,11 @@ for jj in range(num_epochs):
 
 		if do_dnext:
 			with Parallel(n_jobs = num_cores, batch_size = batch_size, pre_dispatch = pre_dispatch, backend = "multiprocessing") as parallel:
-				PROG_INDX = parallel(delayed(surf_halo_tot)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT, DMAIN_PROG, DMPMATCH_FRAC) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
+				PROG_INDX = parallel(delayed(surf_halo_tot)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT, DMAIN_PROG, DMPMATCH_FRAC) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible), disable=None))     )
 
 		else:
 			with Parallel(n_jobs = num_cores, batch_size = batch_size, pre_dispatch = pre_dispatch, backend = "multiprocessing") as parallel:
-				PROG_INDX = parallel(delayed(surf_halo_final)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible)))     )
+				PROG_INDX = parallel(delayed(surf_halo_final)(i, counter, MAIN_PROG, MPMATCH_FRAC, IS_SPLIT) for i, counter in zip(range(len(mask_eligible)), trange(len(mask_eligible), disable=None))     )
 
 		t_loop_finish = time.time()
 		loop_time += (t_loop_finish-t_loop_start)
