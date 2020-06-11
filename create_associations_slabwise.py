@@ -125,6 +125,10 @@ elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type =
 		# List in descending order of redshift already
 		steps  = steps
 
+# LHG: this can be used to remove z=8 if it is so sparse it is missing halo_info files, for example
+#print(f"Removing last step {steps[-1]}")
+#steps = steps[:-1]
+
 stepsAll  = steps[::dn]
 steps     = stepsAll[start_snap:]
 num_files = len(glob.glob(steps[0] + "/halo_info/halo_info*"))
