@@ -164,6 +164,9 @@ else:
 end_snap = num_epochs+2 # We need to read two additional epochs for matching
 steps    = steps[:end_snap]
 
+if (num_epochs > len(steps)-1):
+	num_epohcs = len(steps)-1
+
 # Routine for looping through candidate haloes and matching IDs
 
 read_time       = 0.0
