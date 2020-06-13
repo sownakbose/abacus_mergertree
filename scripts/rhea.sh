@@ -17,12 +17,12 @@ cd $HOME/abacus_mergertree
 
 echo "Starting halo association for ${SIMNAME} on $(hostname) with ${NCORES} cores"
 
-#srun ./create_associations_slabwise.py -inputdir "$ABACUSSUMMIT" \
-#        -simname $SIMNAME \
-#        -num_chunks 16 \
-#        -num_cores $NCORES \
-#        -outputdir $OUTDIR \
-#        -num_epochs 8
-#        #-num_slabs_todo -1
+./create_associations_slabwise.py -inputdir "$ABACUSSUMMIT" \
+        -simname $SIMNAME \
+        -num_chunks=-1 \
+        -num_cores $NCORES \
+        -outputdir $OUTDIR \
+        -num_epochs 8
+        #-num_slabs_todo -1
 
 echo "Done halo associations."
