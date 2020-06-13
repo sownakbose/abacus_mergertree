@@ -169,6 +169,11 @@ else:
 end_snap = num_epochs+2 # We need to read two additional epochs for matching
 steps    = steps[:end_snap]
 
+if (num_epochs > len(steps)-1):
+	num_epochs = len(steps)-1
+	print("num_epochs (%d) is greater than the number of remaining steps (%d). Resetting to %d."%(args.num_epochs, len(steps), num_epochs))
+	sys.stdout.flush()
+
 # Routine for looping through candidate haloes and matching IDs
 
 read_time       = 0.0
