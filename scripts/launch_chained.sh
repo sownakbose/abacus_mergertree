@@ -42,10 +42,10 @@ for SET in ${SETS[@]}; do
     SIMFN=$(mktemp sims.XXXX.txt)
     (IFS=$'\n'; echo "${SIMS[*]}" > ${SIMFN})
 
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --wrap "srun rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun rhea.sh ${SIMFN} && echo srun complete")
+    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
+    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
+    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
+    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo Last srun complete")
 done
 
 echo $NRUNNING, $NTOT
