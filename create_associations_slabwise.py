@@ -18,6 +18,7 @@ import asdf
 import time
 import sys
 import os
+import gc
 
 # Load merger tree libraries
 
@@ -625,10 +626,19 @@ for jj in range(num_epochs):
 
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
+		# Delete any variables local to this loop iteration to save memory
+		del header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+		del tree
+
 		if do_dnext:
 			del neighbours, dneighbours
+			#del box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
+			del nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
+			del tree_dnext
 		else:
 			del neighbours
+
+		gc.collect()
 
 		t1 = time.time()
 		print("Total write time: %4.2fs"%(t1-t0))
