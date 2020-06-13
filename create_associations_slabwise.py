@@ -622,7 +622,10 @@ for jj in range(num_epochs):
 
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
-		output_file.write_to(odir + "associations_z%4.3f.%d.asdf"%(z, ifile_counter))
+		outfn = odir + "associations_z%4.3f.%d.asdf"%(z, ifile_counter)
+		tmpfn = outfn + '.tmp'
+		output_file.write_to(tmpfn)
+		os.rename(tmpfn, outfn)  # try to avoid partial writes
 
 		del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
