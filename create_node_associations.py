@@ -668,13 +668,13 @@ for jj in range(num_epochs):
 		del MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
 		# Delete any variables local to this loop iteration to save memory
-		del header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+		del header, box, nslice, z, numhalos, nphalo, mhalo, pos, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
 		del nslice_next, z_next, numhalos_next, nphalo_next, mhalo_next, pos_next, nstartA_next, ntagA_next, nstartB_next, ntagB_next, ntag_next, pids_next, rho_next
 
 		if do_dnext:
 			del neighbours, dneighbours
 			#del box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
-			del nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
+			del nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
 		else:
 			del neighbours
 
