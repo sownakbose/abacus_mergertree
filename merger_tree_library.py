@@ -55,6 +55,19 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 				nphalo   = cat.halos[:]["N"].data
 				numhalos = cat.numhalos
 				ntag     = ntagA + ntagB
+		elif "nodewise" in halo_type:
+				cat      = CompaSOHaloCatalog(step_now, load_subsamples="AB_halo_pid", convert_units=True, fields = "merger", unpack_bits = "merger")
+				pids     = cat.subsamples[:]["pid"].data
+				rho      = cat.subsamples[:]["density"].data
+				nstartA  = cat.halos[:]["npstartA"].data
+				ntagA    = cat.halos[:]["npoutA"].data
+				nstartB  = cat.halos[:]["npstartB"].data
+				ntagB    = cat.halos[:]["npoutB"].data
+				pos      = cat.halos[:]["x_L2com"].data
+				#vmax     = cat.halos[:]["vcirc_max_L2com"].data
+				nphalo   = cat.halos[:]["N"].data
+				numhalos = cat.numhalos
+				ntag     = ntagA + ntagB
 		elif "asdf" in halo_type:
 				cat    = DietAbacusHaloCatalog(step_now, load_subsamples="B_halo_pid", convert_units=True, unpack_bits=True)
 				pids   = cat.subsamples[:]["pid"].data
@@ -105,15 +118,19 @@ def read_halo_catalogue(step_now, halo_type, return_header = False):
 		part_f.close()
 
 	if return_header:
-		if not "slabwise" in halo_type:
-			return cat.header, box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
-		else:
+		if "slabwise" in halo_type:
 			return cat.header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
-	else:
-		if not "slabwise" in halo_type:
-			return box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
+		elif "nodewise" in halo_type:
+			return cat.header, box, nslice, z, numhalos, nphalo, mhalo, pos, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
 		else:
+			return cat.header, box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
+	else:
+		if "slabwise" in halo_type:
 			return box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+		elif "nodewise" in halo_type:
+			return box, nslice, z, numhalos, nphalo, mhalo, pos, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+		else:
+			return box, nslice, z, nphalo, mhalo, pos, vmax, nstart, ntag, pids, rho
 
 # It's probably worth giving these haloes a unique identifier
 

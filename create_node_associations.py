@@ -76,7 +76,7 @@ args = my_parser.parse_args()
 num_cores    = args.num_cores
 pre_dispatch = "4*n_jobs"
 batch_size   = "auto"
-halo_type    = "Abacus_slabwise" # "Abacus_FOF" or "Abacus_SO" or "Rockstar" or "Abacus_Cosmos" or "asdf"
+halo_type    = "Abacus_nodewise" # "Abacus_FOF" or "Abacus_SO" or "Rockstar" or "Abacus_Cosmos" or "asdf"
 start_snap   = 0
 num_epochs   = args.num_epochs
 
@@ -96,8 +96,8 @@ ntagmin  = 5
 # Minimum number of subsampled particles a halo needs to have to be considered a matching candidate
 lowlim   = int(mfrac*ntagmin)
 # Maximum number of neighbours to search through
-num_neigh  = 500
-num_neigh2 = 800
+num_neigh  = 350
+num_neigh2 = 450
 # Upper bound distance to search for neighbours
 search_rad  = 8.0
 search_rad2 = 12.0
@@ -116,7 +116,7 @@ odir   = args.outputdir + "/%s/"%(simName)
 if not os.path.exists(odir):
 	os.makedirs(odir)
 
-if (halo_type == "Abacus_Cosmos") or (halo_type == "Abacus_asdf") or (halo_type == "Abacus_slabwise"):
+if (halo_type == "Abacus_Cosmos") or (halo_type == "Abacus_asdf") or (halo_type == "Abacus_slabwise") or (halo_type == "Abacus_nodewise"):
 	steps  = sorted(glob.glob(base))
 else:
 	steps  = sorted(glob.glob(base+"Step*"))
@@ -124,7 +124,7 @@ else:
 if (halo_type == "Abacus_SO") or (halo_type == "Abacus_FOF"):
 		# Reverse list in descending order of slice Nr
 		steps  = steps[::-1]
-elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type == "Abacus_asdf") or (halo_type == "Abacus_slabwise"):
+elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type == "Abacus_asdf") or (halo_type == "Abacus_slabwise") or (halo_type == "Abacus_nodewise"):
 		# List in descending order of redshift already
 		steps  = steps
 
@@ -346,7 +346,7 @@ def surf_halo_dnext(iter, neigh, dmainProgArray, dmainProgFracArray):
 
 		# Since we're only interested in the main progenitor in the dnext step,
 		# we need only look through a few candidates at most
-		if (np.sum(rho_this_halo) < 0.25*rho_initial):
+		if (np.sum(rho_this_halo) < 0.35*rho_initial):
 			break
 
 	dmainProgArray[halo_index]     = id_contr_max
@@ -576,8 +576,9 @@ for jj in range(num_epochs):
 		tquery     = t_query_2-t_query_1
 		print("Took %4.2fs to query all neighbours."%(tquery))
 		sys.stdout.flush()
-
+		del tree
 		tree_query_time += tquery
+		gc.collect()
 
 		if do_dnext:
 			print("Finding neighbours for subsequent catalogue.")
@@ -588,8 +589,9 @@ for jj in range(num_epochs):
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))
 			sys.stdout.flush()
-
+			del tree_dnext
 			tree_query_time += tquery
+			gc.collect()
 
 		# Create some temporary memory spaces for multiprocessing
 		folder      = tempfile.mkdtemp()
@@ -667,13 +669,12 @@ for jj in range(num_epochs):
 
 		# Delete any variables local to this loop iteration to save memory
 		del header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
-		del tree
+		del nslice_next, z_next, numhalos_next, nphalo_next, mhalo_next, pos_next, nstartA_next, ntagA_next, nstartB_next, ntagB_next, ntag_next, pids_next, rho_next
 
 		if do_dnext:
 			del neighbours, dneighbours
 			#del box, nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
 			del nslice_dnext, z_dnext, numhalos_dnext, nphalo_dnext, mhalo_dnext, pos_dnext, vmax_dnext, nstartA_dnext, ntagA_dnext, nstartB_dnext, ntagB_dnext, ntag_dnext, pids_dnext, rho_dnext
-			del tree_dnext
 		else:
 			del neighbours
 
