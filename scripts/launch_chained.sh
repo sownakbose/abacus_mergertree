@@ -11,23 +11,27 @@ shopt -s extglob
 ABACUSSUMMIT=$PROJWORK/AbacusSummit
 
 NTOT=$(find ${ABACUSSUMMIT} -maxdepth 1 -name 'AbacusSummit_base_c???_ph???' | wc -l)
-#SETS=('AbacusSummit_base_c{000..004}_ph???' 'AbacusSummit_base_c{009..020}_ph000' 'AbacusSummit_base_c{100..126}_ph000' 'AbacusSummit_base_c{130..181}_ph000')
-SETS=('AbacusSummit_base_c000_ph006')
+#SCRIPT=rhea.sh
+#SETFNS=(set7.txt set8.txt set9.txt set11.txt set_incomplete.txt )
+#SETFNS=(set13.txt)
+
+SCRIPT=rhea_node.sh
+SETFNS=(set14.txt)
+
 HRS_PER_JOB=36
+CORES=16
+PART=batch
 
-#NTOT=$(find ${ABACUSSUMMIT} -maxdepth 1 -name 'AbacusSummit_hugebase_c???_ph???' | wc -l)
-#SETS=('AbacusSummit_hugebase_c???_ph{000..012}' 'AbacusSummit_hugebase_c???_ph{013..024}')
-#HRS_PER_JOB=12
-
-#SETS=('AbacusSummit_huge_c000_ph{201..202}')
+#SETFNS=(set6.txt)
+#HRS_PER_JOB=48
+#CORES=28
+#PART=gpu
 
 mkdir -p logs
 
 NRUNNING=0
-for SET in ${SETS[@]}; do
-    #echo $ABACUSSUMMIT/$SET
-    eval SIMS=($ABACUSSUMMIT/$SET)
-    SIMS=($(xargs -n1 basename <<< "${SIMS[@]}"))
+for SETFN in ${SETFNS[@]}; do
+    readarray -t SIMS < $SETFN
     NTHISSET=${#SIMS[@]}
     echo ${NTHISSET}
 
@@ -39,13 +43,15 @@ for SET in ${SETS[@]}; do
 
     NRUNNING=$(( NRUNNING + ${NTHISSET} ))
 
-    SIMFN=$(mktemp sims.XXXX.txt)
-    (IFS=$'\n'; echo "${SIMS[*]}" > ${SIMFN})
-
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo srun complete")
-    JOBID=$(sbatch --ntasks-per-node=1 -c16 --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "srun -K0 rhea.sh ${SIMFN} && echo Last srun complete")
+    if [[ ${SCRIPT} == *node* ]]; then
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --wrap "echo node ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo first node srun complete")
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "echo node ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo second node srun complete")
+    else
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --wrap "echo ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo first srun complete")
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "echo ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo second srun complete")
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "echo ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo third srun complete")
+        JOBID=$(sbatch -p ${PART} --ntasks-per-node=1 -c${CORES} --mem=0 -A AST145 -t 0-${HRS_PER_JOB} -N ${NTHISSET} --parsable --depend=afterok:${JOBID} --kill-on-invalid-dep=yes --wrap "echo ${SETFN}; srun -K0 ${SCRIPT} ${SETFN} && echo Last srun complete")
+    fi
 done
 
 echo $NRUNNING, $NTOT

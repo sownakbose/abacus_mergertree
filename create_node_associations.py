@@ -15,6 +15,7 @@ import shutil
 import numba
 import glob
 import asdf
+import asdf.compression
 import time
 import sys
 import os
@@ -105,6 +106,11 @@ search_rad2 = 12.0
 # Output name
 
 simName = args.simname #"AbacusSummit_highbase_c000_ph100"
+
+# Output settings
+asdf_compression = 'blsc'
+asdf.compression.validate(asdf_compression)
+asdf.compression.set_compression_options(asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
 
 # Load initial catalogue
 
@@ -658,11 +664,19 @@ for jj in range(num_epochs):
 		"header": header,
 		}
 
+		# reduce some of the type widths
+		for f in ['HaloMass', 'MainProgenitorFrac', 'MainProgenitorPrecFrac', 'HaloVmax']:
+			data_tree[f] = data_tree[f].astype(np.float32)
+		data_tree['NumProgenitors'] = data_tree['NumProgenitors'].astype(np.int32)
+		for f in ['IsAssociated', 'IsPotentialSplit']:
+			data_tree[f] = data_tree[f].astype(np.int8)
+
+
 		# Save the data
 		output_file = asdf.AsdfFile(data_tree)
 		outfn = odir + "treenode_associations_z%4.3f.%d.asdf"%(z, ifile_counter)
 		tmpfn = outfn + '.tmp'
-		output_file.write_to(tmpfn)
+		output_file.write_to(tmpfn, all_array_compression=asdf_compression)
 		os.rename(tmpfn, outfn)  # try to avoid partial writes
 
 		del MAIN_PROG, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
