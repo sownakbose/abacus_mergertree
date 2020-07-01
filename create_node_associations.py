@@ -138,8 +138,8 @@ elif (halo_type == "Rockstar") or (halo_type == "Abacus_Cosmos") or (halo_type =
 #print(f"Removing last step {steps[-1]}")
 #steps = steps[:-1]
 
-z_interest = np.array([0.1, 0.2, 0.5, 0.8, 1.1])
-z_match    = np.array([(0.5, 1.1), (0.5, 1.1), (0.8, 1.1), (1.1, 1.4), (1.4, 2.0)])
+z_interest = np.array([0.1, 0.2, 0.5, 0.8, 1.1, 1.4])
+z_match    = np.array([(0.4, 0.95), (0.5, 1.1), (0.875, 1.625), (1.25, 2.25), (1.625, 2.75), (2.0, 3.0)])
 
 stepsAll  = steps[::dn]
 
