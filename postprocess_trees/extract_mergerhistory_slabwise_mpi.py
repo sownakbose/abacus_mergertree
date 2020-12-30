@@ -3,6 +3,7 @@
 
 from __future__ import division
 from scipy.stats import binned_statistic
+from Abacus.fast_cksum.cksum_io import CksumWriter
 import match_searchsorted as ms
 from mpi4py import MPI
 from tqdm import *
