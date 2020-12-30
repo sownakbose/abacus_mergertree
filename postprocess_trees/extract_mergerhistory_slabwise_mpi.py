@@ -236,26 +236,32 @@ for i, ii in enumerate(range(nfiles)):
 
     print("Cleanups...")
     sys.stdout.flush()
-    ff = asdf.open(odir + "MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
+    asdf_fn = odir + "MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii)
+    ff = asdf.open(asdf_fn)
     MassHistory = ff.tree["MassHistory"]
     data_tree = {"data": {
     "MassHistory": MassHistory.T,
     #"IndexHistory": MBP,
         "Mpeak": mmax}}
 
-    outfile = asdf.AsdfFile(data_tree)
-    outfile.write_to(odir + "/MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
-    outfile.close()
+    #outfile = asdf.AsdfFile(data_tree)
+    #outfile.write_to(odir + "/MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
+    #outfile.close()
+    with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
+        af.write_to(fp, all_array_compression="blsc")
 
-    ff = asdf.open(odir + "IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
+    asdf_fn = odir + "IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii)
+    ff = asdf.open(asdf_fn)
     IndexHistory = ff.tree["IndexHistory"]
     data_tree = {"data": {
     "IndexHistory": IndexHistory.T
     }}
 
-    outfile = asdf.AsdfFile(data_tree)
-    outfile.write_to(odir + "/IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
-    outfile.close()
+    #outfile = asdf.AsdfFile(data_tree)
+    #outfile.write_to(odir + "/IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
+    #outfile.close()
+    with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
+        af.write_to(fp, all_array_compression="blsc")
 
 #ff.tree["IndexHistory"] = MBP
 
