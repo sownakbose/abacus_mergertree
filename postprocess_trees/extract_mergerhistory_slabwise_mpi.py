@@ -5,7 +5,7 @@ from __future__ import division
 from scipy.stats import binned_statistic
 from Abacus.fast_cksum.cksum_io import CksumWriter
 import match_searchsorted as ms
-from mpi4py import MPI
+#from mpi4py import MPI
 from tqdm import *
 import numpy as np
 import h5py as h5
@@ -22,6 +22,8 @@ from astropy.table import Table
 
 from asdf import AsdfFile, Stream
 
+asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
+
 warnings.filterwarnings("ignore")
 
 if len(sys.argv) < 5:
@@ -32,9 +34,9 @@ sim      = sys.argv[2]
 snapin   = float(sys.argv[3])
 outdir   = sys.argv[4]
 
-myrank   = MPI.COMM_WORLD.Get_rank()
-i        = myrank
-size     = MPI.COMM_WORLD.Get_size()
+#myrank   = MPI.COMM_WORLD.Get_rank()
+#i        = myrank
+#size     = MPI.COMM_WORLD.Get_size()
 
 #basedir  = "/home/sbose/analysis/data/%s"%(sim)
 #basedir  = "/mnt/store/sbose/%s"%(sim)
@@ -113,7 +115,7 @@ tstart=time.time()
 #for ii in range(nfiles):
 for i, ii in enumerate(range(nfiles)):
 
-    if i%size != myrank: continue
+    #if i%size != myrank: continue
 
     print("Superslab number: %d (of %d) being done by processor %d"%(ii, nfiles, myrank))
     '''
@@ -240,10 +242,11 @@ for i, ii in enumerate(range(nfiles)):
     asdf_fn = odir + "MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii)
     ff = asdf.open(asdf_fn)
     MassHistory = ff.tree["MassHistory"]
+
     data_tree = {"data": {
-    "MassHistory": MassHistory.T,
+    "MassHistory": np.array(MassHistory.T),
     #"IndexHistory": MBP,
-        "Mpeak": mmax}}
+        "Mpeak": np.array(mmax)}}
 
     #outfile = asdf.AsdfFile(data_tree)
     #outfile.write_to(odir + "/MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
@@ -255,7 +258,7 @@ for i, ii in enumerate(range(nfiles)):
     ff = asdf.open(asdf_fn)
     IndexHistory = ff.tree["IndexHistory"]
     data_tree = {"data": {
-    "IndexHistory": IndexHistory.T
+    "IndexHistory": np.array(IndexHistory.T)
     }}
 
     #outfile = asdf.AsdfFile(data_tree)
@@ -263,7 +266,6 @@ for i, ii in enumerate(range(nfiles)):
     #outfile.close()
     with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
         af.write_to(fp, all_array_compression="blsc")
-
 #ff.tree["IndexHistory"] = MBP
 
 tend=time.time()
