@@ -117,7 +117,7 @@ for i, ii in enumerate(range(nfiles)):
 
     #if i%size != myrank: continue
 
-    print("Superslab number: %d (of %d) being done by processor %d"%(ii, nfiles, myrank))
+    #print("Superslab number: %d (of %d) being done by processor %d"%(ii, nfiles, myrank))
     '''
     print("Loading associations for snapshot %d of %d"%(1,Nsnapshot))
     sys.stdout.flush()
