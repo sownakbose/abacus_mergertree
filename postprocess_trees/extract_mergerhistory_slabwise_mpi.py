@@ -23,12 +23,11 @@ from asdf import AsdfFile, Stream
 
 warnings.filterwarnings("ignore")
 
-if len(sys.argv) < 6:
-    sys.exit("python extract_mergerhistory.py base sim nfiles_per_step snapshot outdir")
+if len(sys.argv) < 5:
+    sys.exit("python extract_mergerhistory.py base sim snapshot outdir")
 
 basedir  = sys.argv[1]
 sim      = sys.argv[2]
-nfiles   = int(sys.argv[3])
 snapin   = float(sys.argv[4])
 outdir   = sys.argv[5]
 
@@ -43,7 +42,7 @@ basedir += "/%s"%(sim)
 
 #base     = basedir + "/associations_StepNr_%d"%(snapin)
 #base    += ".%d.asdf"
-
+nfiles   = len(glob.glob( basedir + "/associations_z0.100.*.asdf" ))
 unique_files = glob.glob( basedir + "/associations_z*.0.asdf" )
 
 print("Simulation: ", sim)
