@@ -3,6 +3,7 @@
 
 from __future__ import division
 from compaso_halo_catalog import CompaSOHaloCatalog
+from Abacus.fast_cksum.cksum_io import CksumWriter
 from astropy.table import Table
 from mpi4py import MPI
 from numba import njit
@@ -14,6 +15,7 @@ import asdf
 import glob
 
 warnings.filterwarnings("ignore")
+asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
 
 sim       = "AbacusSummit_highbase_c000_ph100"
 zout      = "z0.500"
@@ -79,7 +81,7 @@ def unpack_inds(halo_ids):
     slab_number = ((halo_ids%id_factor-index)//slab_factor).astype(int)
     return slab_number, index
 
-nfiles_to_do = len(glob.glob(clean_dir + "hod_halo_info*.asdf"))
+nfiles_to_do = len(glob.glob(clean_dir + "cleaned_halo_info*tmp.asdf"))
 
 for i, ii in enumerate(range(nfiles_to_do)):
 #for i, ii in enumerate(range(1, 2)):
@@ -88,7 +90,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
     print("Superslab number : %d (of %d) being done by processor %d"%(ii, nfiles_to_do, myrank))
 
     # Load cleaned catalogue files
-    clean_list = return_search_list(clean_dir + "cleaned_halo_info*_v1.asdf", ii)
+    clean_list = return_search_list(clean_dir + "cleaned_halo_info*tmp.asdf", ii)
     clean_cat  = read_multi_cat(clean_list)
     merged_to  = clean_cat["is_merged_to"]
     N_total    = clean_cat["N_total"]
@@ -96,14 +98,15 @@ for i, ii in enumerate(range(nfiles_to_do)):
 
     # Load halo info files
     info_list  = return_search_list(cat_dir + "halo_info*.asdf", ii)
-    cat        = CompaSOHaloCatalog(info_list, load_subsamples="AB_halo_rvint", convert_units=True, fields="merger", unpack_bits=False)
+    cat        = CompaSOHaloCatalog(info_list, load_subsamples="AB_halo_pidrvint", convert_units=True, fields="merger", unpack_bits=False)
     N          = cat.halos["N"]
     nstartA    = cat.halos["npstartA"]
     nstartB    = cat.halos["npstartB"]
     noutA      = cat.halos["npoutA"]
     noutB      = cat.halos["npoutB"]
+    header     = cat.header
     numhalos   = cat.numhalos # Objects in superslab of interest run from [numhalos[0]:numhalos[0]+numhalos[1]]
-    rvint_sub  = cat.subsamples
+    pidrvint_sub  = cat.subsamples
 
 
     indices_that_merge   = np.where(merged_to != -1)[0]
@@ -134,12 +137,15 @@ for i, ii in enumerate(range(nfiles_to_do)):
     #    merged_to[halos_to_reassign] = merged_to[hosts_to_reassign][matches[halos_to_reassign]]
 
 
-    # Particle list will never be bigger than this
+    # Particle l    ist will never be bigger than this
     tot_particles_to_add = int(np.sum(noutB[indices_that_merge]))
 
     # Create Table for particle list
     cols       = {col:np.empty((tot_particles_to_add, 3), dtype=part_dt[col]) for col in ["rvint_A", "rvint_B"]}
     particles  = Table(cols, copy=False)
+    particles.add_column(np.empty(tot_particles_to_add, dtype=np.uint64), name="pid_A", copy=False)
+    particles.add_column(np.empty(tot_particles_to_add, dtype=np.uint64), name="pid_B", copy=False)
+
     # Creat Table for indexing
     cols_index = {col:np.zeros(nhalos_this_slab, dtype=index_dt[col]) for col in index_dt.names}
     p_indexing = Table(cols_index, copy=False)
@@ -188,9 +194,15 @@ for i, ii in enumerate(range(nfiles_to_do)):
         # Write subsample A particles
         for nn in range(len(extra_halo_global_index)):
             halo_now = extra_halo_global_index[nn]
-            particles["rvint_A"][counter_A:counter_A+noutA[halo_now]] = rvint_sub["rvint"][nstartA[halo_now]:nstartA[halo_now]+noutA[halo_now]]
+            # Add subsample A rvints
+            particles["rvint_A"][counter_A:counter_A+noutA[halo_now]] = pidrvint_sub["rvint"][nstartA[halo_now]:nstartA[halo_now]+noutA[halo_now]]
+            # Add subsample A pids
+            particles["pid_A"][counter_A:counter_A+noutA[halo_now]] = pidrvint_sub["pid"][nstartA[halo_now]:nstartA[halo_now]+noutA[halo_now]]
             counter_A += noutA[halo_now]
-            particles["rvint_B"][counter_B:counter_B+noutB[halo_now]] = rvint_sub["rvint"][nstartB[halo_now]:nstartB[halo_now]+noutB[halo_now]]
+            # Add subsample B rvints
+            particles["rvint_B"][counter_B:counter_B+noutB[halo_now]] = pidrvint_sub["rvint"][nstartB[halo_now]:nstartB[halo_now]+noutB[halo_now]]
+            # Add subsample B pids
+            particles["pid_B"][counter_B:counter_B+noutB[halo_now]] = pidrvint_sub["pid"][nstartB[halo_now]:nstartB[halo_now]+noutB[halo_now]]
             counter_B += noutB[halo_now]
 
     #p_indexing["N_total"] = N[numhalos[0]:numhalos[0]+numhalos[1]] + p_indexing["N_merge"]
@@ -199,29 +211,36 @@ for i, ii in enumerate(range(nfiles_to_do)):
     print("Writing out data....")
 
     # Done looping over haloes in this file. Time to write out data
-    data_tree = {"halos": {
-        "halo_info_index": clean_cat["halo_info_index"][numhalos[0]:numhalos[0]+numhalos[1]],
+    data_tree = {
         "is_merged_to": merged_to[numhalos[0]:numhalos[0]+numhalos[1]],
-        "N_total": p_indexing["N_total"],
+        "N_total": N_total[numhalos[0]:numhalos[0]+numhalos[1]],
         "N_merge": p_indexing["N_merge"],
         "npstartA_merge": p_indexing["npstartA_merge"],
         "npoutA_merge": p_indexing["npoutA_merge"],
         "npstartB_merge": p_indexing["npstartB_merge"],
-        "npoutB_merge": p_indexing["npoutB_merge"]
-        }
+        "npoutB_merge": p_indexing["npoutB_merge"],
+        "header": header
     }
 
-    outfile = asdf.AsdfFile(data_tree)
-    outfile.write_to(clean_dir + "/cleaned_halo_info_%03d.asdf"%ii)
-    outfile.close()
+    #outfile = asdf.AsdfFile(data_tree)
+    #outfile.write_to(clean_dir + "/cleaned_halo_info_%03d.asdf"%ii)
+    #outfile.close()
+    asdf_fn = clean_dir + "/cleaned_halo_info_%03d.asdf"%ii
+    with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
+        af.write_to(fp, all_array_compression="blsc")
 
     # Write out new particles
-    data_tree = {"particles":{
+    data_tree = {
+    "pid_A": particles["pid_A"][:counter_A],
+    "pid_B": particles["pid_B"][:counter_B],
     "rvint_A": particles["rvint_A"][:counter_A], # Trim to last filled value
-    "rvint_B": particles["rvint_B"][:counter_B]
-        }
+    "rvint_B": particles["rvint_B"][:counter_B],
+    "header": header
     }
 
-    outfile = asdf.AsdfFile(data_tree)
-    outfile.write_to(clean_dir + "/cleaned_pidrv_%03d.asdf"%ii)
-    outfile.close()
+    #outfile = asdf.AsdfFile(data_tree)
+    #outfile.write_to(clean_dir + "/cleaned_rvpid_%03d.asdf"%ii)
+    #outfile.close()
+    asdf_fn = clean_dir + "/cleaned_rvpid_%03d.asdf"%ii
+    with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
+        af.write_to(fp, all_array_compression="blsc")

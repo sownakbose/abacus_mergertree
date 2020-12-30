@@ -4,7 +4,6 @@ from compaso_halo_catalog import CompaSOHaloCatalog
 from scipy.spatial import cKDTree
 from tqdm import *
 from numba import njit
-import read_multi_asdf as ra
 import astropy.table
 from mpi4py import MPI
 from astropy.table import Table
@@ -12,6 +11,7 @@ import numpy as np
 import warnings
 import asdf
 import glob
+import time
 import os
 
 warnings.filterwarnings("ignore")
@@ -29,7 +29,7 @@ ihist_dir = "/mnt/store1/sbose/scratch/data/%s/IndexHistory_Final_z0.500"%(sim)
 #box       = 1000.0
 #half_box  = 0.5*box
 
-af   = asdf.open(mhist_dir+".0.asdf")
+af   = asdf.open(mhist_dir+".000.asdf")
 nout = af.tree["data"]["MassHistory"].shape[1]
 af.close()
 
@@ -155,6 +155,7 @@ num_files   = len(all_files)
 ifiles      = np.arange(num_files)
 ifiles_todo = ifiles[::1]
 
+t_start = time.time()
 # Loop over individual superslabs
 for ii in ifiles_todo:
 #for ii in range(2):
@@ -332,7 +333,7 @@ for ii in ifiles_todo:
             }
         }
         outfile = asdf.AsdfFile(data_tree)
-        outfile.write_to(odir + "/cleaned_halo_info_%03d_v1.asdf"%(ii-1))
+        outfile.write_to(odir + "/cleaned_halo_info_%03d_tmp.asdf"%(ii-1))
         outfile.close()
 
     if (ii == num_files-1):
@@ -345,11 +346,11 @@ for ii in ifiles_todo:
             }
         }
         outfile = asdf.AsdfFile(data_tree)
-        outfile.write_to(odir + "/cleaned_halo_info_%03d_v1.asdf"%(ii))
+        outfile.write_to(odir + "/cleaned_halo_info_%03d_tmp.asdf"%(ii))
         outfile.close()
 
         # We now also need to do the final mass updates for file 0
-        ff = asdf.open(odir + "/cleaned_halo_info_000_v1.asdf")
+        ff = asdf.open(odir + "/cleaned_halo_info_000_tmp.asdf")
         halo_info_index = ff.tree["halos"]["halo_info_index"]
         is_merged_to = ff.tree["halos"]["is_merged_to"]
         assert len(halo_info_index) == nhalos[2]
@@ -362,8 +363,11 @@ for ii in ifiles_todo:
         }
 
         outfile = asdf.AsdfFile(data_tree)
-        outfile.write_to(odir + "/cleaned_halo_info_000_v1.asdf")
+        outfile.write_to(odir + "/cleaned_halo_info_000_tmp.asdf")
         outfile.close()
+
+t_end = time.time()
+print("Total runtime was: %4.2fs"%(t_end-t_start))
 
 '''
 #for ii in trange(len(J)):

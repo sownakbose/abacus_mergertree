@@ -3,7 +3,6 @@
 
 from __future__ import division
 from scipy.stats import binned_statistic
-from read_multi_asdf import joinFile
 import match_searchsorted as ms
 from mpi4py import MPI
 from tqdm import *
@@ -108,7 +107,7 @@ def read_multi_tree(alist):
 odir = outdir + "/%s/"%sim
 
 if not os.path.exists(odir):
-	os.makedirs(odir)
+	os.makedirs(odir, exist_ok=True)
 
 tstart=time.time()
 #for ii in range(nfiles):
@@ -141,7 +140,7 @@ for i, ii in enumerate(range(nfiles)):
     ff_index.tree["IndexHistory"] = Stream([len(HaloMass)], np.int64)
     #ff.tree["IndexHistory"] = Stream([len(HaloMass)], np.int64)
 
-    with open(odir + "MergerHistory_Final_z%4.3f.%d.asdf"%(snapin,ii), "wb") as fd, open(odir + "IndexHistory_Final_z%4.3f.%d.asdf"%(snapin,ii), "wb") as fdi:
+    with open(odir + "MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii), "wb") as fd, open(odir + "IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii), "wb") as fdi:
         ff.write_to(fd)
         ff_index.write_to(fdi)
 
