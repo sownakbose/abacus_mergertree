@@ -29,8 +29,8 @@ if len(sys.argv) < 5:
 
 basedir  = sys.argv[1]
 sim      = sys.argv[2]
-snapin   = float(sys.argv[4])
-outdir   = sys.argv[5]
+snapin   = float(sys.argv[3])
+outdir   = sys.argv[4]
 
 myrank   = MPI.COMM_WORLD.Get_rank()
 i        = myrank
