@@ -84,8 +84,10 @@ index_dt = np.dtype([
     ("sigmav3d_L2com_mainprog", np.float32, Nsnapshot),
     ("npstartA_merge", np.int64),
     ("npoutA_merge", np.uint32),
+    ("npoutA_L0L1_merge", np.uint32),
     ("npstartB_merge", np.int64),
     ("npoutB_merge", np.uint32),
+    ("npoutB_L0L1_merge", np.uint32),
     ], align=True)
 
 def read_multi_cat(file_list):
@@ -128,15 +130,21 @@ for i, ii in enumerate(range(nfiles_to_do)):
     info_list  = return_search_list(cat_dir + "halo_info*.asdf", ii)
     cat        = CompaSOHaloCatalog(info_list, clean_path=None, cleaned_halos=False, load_subsamples="AB_halo_pidrvint", convert_units=True, fields=["N", "npstartA", "npstartB", "npoutA", "npoutB"], unpack_bits=False)
     #cat        = CompaSOHaloCatalog(info_list, clean_path=None, cleaned_halos=False, load_subsamples=False, convert_units=True, fields=["N", "npstartA", "npstartB", "npoutA", "npoutB"], unpack_bits=False)
-    N          = cat.halos["N"]
-    nstartA    = cat.halos["npstartA"]
-    nstartB    = cat.halos["npstartB"]
-    noutA      = cat.halos["npoutA"]
-    noutB      = cat.halos["npoutB"]
+    N          = cat.halos["N"].data
+    nstartA    = cat.halos["npstartA"].data
+    nstartB    = cat.halos["npstartB"].data
+    noutA      = cat.halos["npoutA"].data
+    noutB      = cat.halos["npoutB"].data
     header     = cat.header
     numhalos   = cat.numhalos # Objects in superslab of interest run from [numhalos[0]:numhalos[0]+numhalos[1]]
     pidrvint_sub  = cat.subsamples
+    num_subsamples = np.array([len(pidrvint_sub)], dtype=np.uint64)
 
+    # Let's redefine noutA, noutB so that we also include L0 particles
+    A_start_indices = np.append(nstartA, nstartB[0])
+    B_start_indices = np.append(nstartB, num_subsamples)
+    noutA_L0L1 = np.diff(A_start_indices).astype(np.uint32)
+    noutB_L0L1 = np.diff(B_start_indices).astype(np.uint32)
 
     indices_that_merge   = np.where(merged_to != -1)[0]
     nhalos_this_slab     = numhalos[1]
@@ -252,6 +260,8 @@ for i, ii in enumerate(range(nfiles_to_do)):
         extra_halo_global_index = sort[extra_halo:extra_halo+ncount[jj]]
 
         extra_npart             = np.sum(N[extra_halo_global_index])
+        extra_subsampA_L0L1     = np.sum(noutA_L0L1[extra_halo_global_index])
+        extra_subsampB_L0L1     = np.sum(noutB_L0L1[extra_halo_global_index])
         extra_subsampA          = np.sum(noutA[extra_halo_global_index])
         extra_subsampB          = np.sum(noutB[extra_halo_global_index])
 
@@ -273,20 +283,22 @@ for i, ii in enumerate(range(nfiles_to_do)):
         p_indexing["npstartB_merge"][haloid] = counter_B
         p_indexing["npoutA_merge"][haloid]   = extra_subsampA
         p_indexing["npoutB_merge"][haloid]   = extra_subsampB
+        p_indexing["npoutA_L0L1_merge"][haloid]   = extra_subsampA_L0L1
+        p_indexing["npoutB_L0L1_merge"][haloid]   = extra_subsampB_L0L1
 
         # Write subsample A particles
         for nn in range(len(extra_halo_global_index)):
             halo_now = extra_halo_global_index[nn]
             # Add subsample A rvints
-            particles["rvint_A"][counter_A:counter_A+noutA[halo_now]] = pidrvint_sub["rvint"][nstartA[halo_now]:nstartA[halo_now]+noutA[halo_now]]
+            particles["rvint_A"][counter_A:counter_A+noutA_L0L1[halo_now]] = pidrvint_sub["rvint"][nstartA[halo_now]:nstartA[halo_now]+noutA_L0L1[halo_now]]
             # Add subsample A pids
-            particles["pid_A"][counter_A:counter_A+noutA[halo_now]] = pidrvint_sub["pid"][nstartA[halo_now]:nstartA[halo_now]+noutA[halo_now]]
-            counter_A += noutA[halo_now]
+            particles["pid_A"][counter_A:counter_A+noutA_L0L1[halo_now]] = pidrvint_sub["pid"][nstartA[halo_now]:nstartA[halo_now]+noutA_L0L1[halo_now]]
+            counter_A += noutA_L0L1[halo_now]
             # Add subsample B rvints
-            particles["rvint_B"][counter_B:counter_B+noutB[halo_now]] = pidrvint_sub["rvint"][nstartB[halo_now]:nstartB[halo_now]+noutB[halo_now]]
+            particles["rvint_B"][counter_B:counter_B+noutB_L0L1[halo_now]] = pidrvint_sub["rvint"][nstartB[halo_now]:nstartB[halo_now]+noutB_L0L1[halo_now]]
             # Add subsample B pids
-            particles["pid_B"][counter_B:counter_B+noutB[halo_now]] = pidrvint_sub["pid"][nstartB[halo_now]:nstartB[halo_now]+noutB[halo_now]]
-            counter_B += noutB[halo_now]
+            particles["pid_B"][counter_B:counter_B+noutB_L0L1[halo_now]] = pidrvint_sub["pid"][nstartB[halo_now]:nstartB[halo_now]+noutB_L0L1[halo_now]]
+            counter_B += noutB_L0L1[halo_now]
 
     p_indexing["N_total"] = N[numhalos[0]:numhalos[0]+numhalos[1]] + p_indexing["N_merge"]
     p_indexing["N_total"][deleted_halos] = 0
@@ -300,10 +312,14 @@ for i, ii in enumerate(range(nfiles_to_do)):
         "N_mainprog": N_mainprog[indices_this_slab],
         "vcirc_max_L2com_mainprog": p_indexing["vcirc_max_L2com_mainprog"].data,
         "sigmav3d_L2com_mainprog": p_indexing["sigmav3d_L2com_mainprog"].data,
+        "npoutA_L0L1": noutA_L0L1[numhalos[0]:numhalos[0]+numhalos[1]],
+        "npoutB_L0L1": noutB_L0L1[numhalos[0]:numhalos[0]+numhalos[1]],
         "npstartA_merge": p_indexing["npstartA_merge"].data,
         "npoutA_merge": p_indexing["npoutA_merge"].data,
+        "npoutA_L0L1_merge": p_indexing["npoutA_L0L1_merge"].data,
         "npstartB_merge": p_indexing["npstartB_merge"].data,
         "npoutB_merge": p_indexing["npoutB_merge"].data},
+        "npoutB_L0L1_merge": p_indexing["npoutB_L0L1_merge"].data,
         "header": header
     }
 
