@@ -7,7 +7,7 @@ from Abacus.fast_cksum.cksum_io import CksumWriter
 from compaso_halo_catalog import CompaSOHaloCatalog
 import match_searchsorted as ms
 from scipy.spatial import cKDTree
-from mpi4py import MPI
+#from mpi4py import MPI
 from tqdm import *
 import numpy as np
 import h5py as h5
@@ -36,9 +36,9 @@ sim      = sys.argv[2]
 snapin   = float(sys.argv[3])
 outdir   = sys.argv[4]
 
-myrank   = MPI.COMM_WORLD.Get_rank()
-i        = myrank
-size     = MPI.COMM_WORLD.Get_size()
+#myrank   = MPI.COMM_WORLD.Get_rank()
+#i        = myrank
+#size     = MPI.COMM_WORLD.Get_size()
 
 num_neigh = 50
 factor    = 2.0
@@ -123,6 +123,13 @@ tree_dt = np.dtype([
 ("MainProgenitor", np.int64),
 ], align=True)
 
+tree_dt_slim = np.dtype([
+("HaloIndex", np.int64),
+("HaloMass", np.float32),
+("HaloVmax", np.float32),
+("MainProgenitor", np.int64),
+], align=True)
+
 def read_multi_tree(alist):
     afs	  = [asdf.open(alistname, lazy_load=True, copy_arrays=True) for alistname in alist]
     N_halo_per_file = np.array([len(af["data"]["HaloMass"]) for af in afs])
@@ -138,15 +145,38 @@ def read_multi_tree(alist):
 
     return halos, N_halo_per_file
 
+def read_multi_tree_slim(alist):
+    afs   = [asdf.open(alistname, lazy_load=True, copy_arrays=True) for alistname in alist]
+    N_halo_per_file = np.array([len(af["data"]["HaloMass"]) for af in afs])
+    N_halos = N_halo_per_file.sum()
+    cols  = {col:np.empty(N_halos, dtype=tree_dt_slim[col]) for col in tree_dt_slim.names}
+    halos = Table(cols, copy=False)
+    N_written = 0
+    for af in afs:
+        rawhalos = Table(data={field:af["data"][field] for field in tree_dt_slim.names}, copy=False)
+        halos[N_written:N_written+len(rawhalos)] = rawhalos
+        N_written += len(rawhalos)
+        af.close()
+        
+    return halos, N_halo_per_file
+
 odir = outdir + "/%s/"%sim
 
 if not os.path.exists(odir):
 	os.makedirs(odir, exist_ok=True)
 
 tstart=time.time()
+io_time=0.0
+info_read_time=0.0
+sort_time=0.0
+match_time=0.0
+tree_time=0.0
+temp_save_time=0.0
+write_time=0.0
+
 #for ii in range(nfiles):
 for i, ii in enumerate(range(nfiles)):
-    if i%size != myrank: continue
+    #if i%size != myrank: continue
 
     #print("Superslab number: %d (of %d) being done by processor %d"%(ii, nfiles, myrank))
     print("Superslab number: %d"%(ii))
@@ -163,7 +193,10 @@ for i, ii in enumerate(range(nfiles)):
     '''
     file_list_now  = return_associations_list(basedir + "/merger/%s/"%(sim) + "associations_z%4.3f."%(snapList[0]) + "*.asdf", ii)
     #cat_list_now   = return_search_list(basedir + "/halos/z%4.3f/halo_info/"%(snapList[0]) + "halo_info*.asdf", ii)
+    t0 = time.time()
     halos, numhalos = read_multi_tree(file_list_now)#asdf.open(basedir + "/associations_z%4.3f."%(snapList[0]) + "%d.asdf"%ii)
+    t1 = time.time()
+    io_time += (t1-t0)
     #cat             = CompaSOHaloCatalog(cat_list_now, None, cleaned_halos=False, load_subsamples=False, convert_units=True, unpack_bits=False, fields=["sigmav3d_L2com"], cleaned_fields="all", verbose=False)
     HaloIndex       = halos["HaloIndex"]
     HaloMass        = halos["HaloMass"]
@@ -204,8 +237,13 @@ for i, ii in enumerate(range(nfiles)):
         sys.stdout.flush()
         file_list_next = return_associations_list(basedir + "/merger/%s/"%(sim) + "associations_z%4.3f."%(snapList[jj]) + "*.asdf", ii)
         cat_list_next  = return_search_list(basedir + sim + "/halos/z%4.3f/halo_info/"%(halo_snapList[jj]) + "halo_info*.asdf", ii)
-        halos_next, numhalos_next = read_multi_tree(file_list_next)
+        t0 = time.time()
+        halos_next, numhalos_next = read_multi_tree_slim(file_list_next)
+        t00 = time.time()
         cat_next       = CompaSOHaloCatalog(cat_list_next, None, cleaned_halos=False, load_subsamples=False, convert_units=True, unpack_bits=False, fields=["sigmav3d_L2com"], cleaned_fields="all", verbose=False)
+        t1 = time.time()
+        io_time += (t1-t0)
+        info_read_time += (t1-t00)
         HaloIndexNext  = halos_next["HaloIndex"]
         HaloMassNext   = halos_next["HaloMass"]
         HaloVmaxNext   = halos_next["HaloVmax"]
@@ -222,15 +260,17 @@ for i, ii in enumerate(range(nfiles)):
         sort = np.argsort(HaloIndexNext)
         HaloIndexNextSorted = HaloIndexNext[sort]
         t1 = time.time()
-        print("Sorting took %4.2fs."%(t1-t0))
-        sys.stdout.flush()
+        sort_time += (t1-t0)
+        #print("Sorting took %4.2fs."%(t1-t0))
+        #sys.stdout.flush()
 
         if ii == 0:
             t0 = time.time()
             match_index = ms.match(MainProg, HaloIndexNextSorted, arr2_sorted = True)
             t1 = time.time()
-            print("Matching took %4.2fs."%(t1-t0))
-            sys.stdout.flush()
+            #print("Matching took %4.2fs."%(t1-t0))
+            match_time += (t1-t0)
+            #sys.stdout.flush()
             # Find the entries where no main progenitor found
             mask = np.where(match_index == -1)[0]
             # Get the matched indices in terms of the unsorted array
@@ -304,8 +344,9 @@ for i, ii in enumerate(range(nfiles)):
             t0 = time.time()
             match_index = ms.match(MainProg[inds_to_match], HaloIndexNextSorted, arr2_sorted = True)
             t1 = time.time()
-            print("Matching took %4.2fs."%(t1-t0))
-            sys.stdout.flush()
+            match_time += (t1-t0)
+            #print("Matching took %4.2fs."%(t1-t0))
+            #sys.stdout.flush()
             mask = np.where(match_index == -1)[0]
             # Get the matched indices in terms of the unsorted array
             match_index = sort[match_index]
@@ -347,7 +388,10 @@ for i, ii in enumerate(range(nfiles)):
             sys.stdout.flush()
 
             # Find neighbours
+            t0 = time.time()
             neigh = tree.query(pos_now[halos_to_fix]+half_box, k=num_neigh, n_jobs=-1)[1]
+            t1 = time.time()
+            tree_time += (t1-t0)
             # Loop over dodgy ones
             for nn in trange(len(halos_to_fix)):
                 halo_now   = halos_to_fix[nn]
@@ -365,6 +409,7 @@ for i, ii in enumerate(range(nfiles)):
                     #triplet_mergeto[halo_now] = mask2
                     is_merged_to[halo_now]    = HaloIndex_Start[mask2]
 
+        t0 = time.time()
         # We can create some temporary files so that objects that are matched can be recalled later
         np.save(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), mbp_idx.data[numhalos[0]:numhalos[0]+numhalos[1]])
         np.save(odir + "/temporary_mass_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), mbp_mass.data[numhalos[0]:numhalos[0]+numhalos[1]])
@@ -391,7 +436,8 @@ for i, ii in enumerate(range(nfiles)):
             np.save(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vmax.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vrms.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), MainProg.data[numhalos[0]+numhalos[1]:])
-
+        t1 = time.time()
+        temp_save_time += (t1-t0)
         '''
         if jj == 1:
             fd.write(np.array(HaloMass, np.float32).tostring())
@@ -438,7 +484,7 @@ for i, ii in enumerate(range(nfiles)):
 
     print("Cleanups...")
     sys.stdout.flush()
-    asdf_fn = odir + "MergerHistory_Final_z%4.3f.%03d.asdf_test"%(snapin,ii)
+    asdf_fn = odir + "MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii)
     #ff = asdf.open(asdf_fn)
     #MassHistory = ff.tree["MassHistory"]
 
@@ -454,10 +500,11 @@ for i, ii in enumerate(range(nfiles)):
     #outfile = asdf.AsdfFile(data_tree)
     #outfile.write_to(odir + "/MergerHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii))
     #outfile.close()
-
+    t0 = time.time()
     with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
         af.write_to(fp, all_array_compression="blsc")
-
+    t1 = time.time()
+    write_time += (t1-t0)
     '''
     asdf_fn = odir + "IndexHistory_Final_z%4.3f.%03d.asdf"%(snapin,ii)
     ff = asdf.open(asdf_fn)
@@ -476,4 +523,11 @@ for i, ii in enumerate(range(nfiles)):
 
 tend=time.time()
 print("Processing complete in %4.2fs!"%(tend-tstart))
+print("Total IO time: %4.2fs"%io_time)
+print("Of which halo_info read time: %4.2fs"%info_read_time)
+print("Total tree query time: %4.2fs"%tree_time)
+print("Total sort time: %4.2fs"%sort_time)
+print("Total match time: %4.fs"%match_time)
+print("Total temporary save time: %4.2fs"%temp_save_time)
+print("Total write time: %4.2fs"%write_time)
 sys.stdout.flush()
