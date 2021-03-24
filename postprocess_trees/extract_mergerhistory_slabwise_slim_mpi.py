@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#! Filename: extract_mergerhistory.py
+#! Filename: extract_mergerhistory_slabwise_slim_mpi.py
 
 from __future__ import division
 from scipy.stats import binned_statistic
@@ -29,12 +29,13 @@ asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asd
 warnings.filterwarnings("ignore")
 
 if len(sys.argv) < 5:
-    sys.exit("python extract_mergerhistory.py base sim snapshot outdir")
+    sys.exit("python extract_mergerhistory_slabwise_slim_mpi.py base sim snapshot outdir")
 
 basedir  = sys.argv[1]
 sim      = sys.argv[2]
 snapin   = float(sys.argv[3])
 outdir   = sys.argv[4]
+snapshot = "z%4.3f"%(snapin)
 
 #myrank   = MPI.COMM_WORLD.Get_rank()
 #i        = myrank
@@ -50,11 +51,15 @@ factor    = 2.0
 
 #base     = basedir + "/associations_StepNr_%d"%(snapin)
 #base    += ".%d.asdf"
-nfiles   = len(glob.glob( basedir + "/merger/%s/"%(sim) +"associations_z0.100.*.asdf" ))
+#print(basedir)
+nfiles   = len(glob.glob( basedir + "/merger/%s/"%(sim) +"associations_z0.500.*.asdf" ))
 unique_files = glob.glob( basedir + "/merger/%s/"%(sim) + "associations_z*.0.asdf" )
 
 # Since some halo_info output times != association output times
 halo_unique_files = glob.glob( basedir + sim + "/halos/z*" )
+
+print( basedir + "/merger/%s/"%(sim) + "associations_z*.0.asdf" )
+sys.stdout.flush()
 
 # Get box size
 af       = asdf.open(unique_files[0])
@@ -63,6 +68,7 @@ mpart    = af["header"]["ParticleMassHMsun"]
 half_box = 0.5*box
 
 print("Simulation: ", sim)
+print("Snapshot: ", snapshot)
 sys.stdout.flush()
 
 # Get the relevant list of snapshot numbers
@@ -121,6 +127,7 @@ tree_dt = np.dtype([
 ("HaloVmax", np.float32),
 ("Position", np.float32, 3),
 ("MainProgenitor", np.int64),
+("NumProgenitors", np.int8),
 ], align=True)
 
 tree_dt_slim = np.dtype([
@@ -145,6 +152,21 @@ def read_multi_tree(alist):
 
     return halos, N_halo_per_file
 
+def read_multi_progenitors(alist):
+    afs   = [asdf.open(alistname, lazy_load=True, copy_arrays=True) for alistname in alist]
+    N_progs_per_file = np.array([af["data"]["NumProgenitors"].sum() for af in afs])
+    N_progs = N_progs_per_file.sum()
+    cols  = {col:np.empty(N_progs, dtype=np.int64) for col in ["Progenitors"]}
+    halos = Table(cols, copy=False)
+    N_written = 0
+    for af in afs:
+        rawhalos = Table(data={field:af["data"][field] for field in ["Progenitors"]}, copy=False)
+        halos[N_written:N_written+len(rawhalos)] = rawhalos
+        N_written += len(rawhalos)
+        af.close()
+
+    return halos, N_progs_per_file
+
 def read_multi_tree_slim(alist):
     afs   = [asdf.open(alistname, lazy_load=True, copy_arrays=True) for alistname in alist]
     N_halo_per_file = np.array([len(af["data"]["HaloMass"]) for af in afs])
@@ -160,7 +182,7 @@ def read_multi_tree_slim(alist):
         
     return halos, N_halo_per_file
 
-odir = outdir + "/%s/"%sim
+odir = outdir + "/%s/"%sim + snapshot + "/"
 
 if not os.path.exists(odir):
 	os.makedirs(odir, exist_ok=True)
@@ -173,6 +195,7 @@ match_time=0.0
 tree_time=0.0
 temp_save_time=0.0
 write_time=0.0
+n_fixed=0
 
 #for ii in range(nfiles):
 for i, ii in enumerate(range(nfiles)):
@@ -206,11 +229,21 @@ for i, ii in enumerate(range(nfiles)):
     HaloMass        = (HaloMass.data / mpart).astype(int)
     MainProg        = halos["MainProgenitor"]
     Position        = halos["Position"]
+    NumProgenitors  = halos["NumProgenitors"]
+
+    # Compute progenitor offset list here
+    cindex          = np.append(0, NumProgenitors)
+    offset_array    = np.cumsum(cindex)
+
+    progsTable, numprogs = read_multi_progenitors(file_list_now)
+    Progenitors     = progsTable["Progenitors"].data
+
     args_now        = np.arange(numhalos[0], numhalos[0]+numhalos[1])
     mmax            = np.copy(HaloMass[args_now])
     indmax          = np.copy(HaloIndex[args_now])
     HaloIndex_Start = np.copy(HaloIndex)
     HaloMass_Start  = np.copy(HaloMass)
+    MainProg_Start  = np.copy(MainProg)
     #triplet_mergeto = np.zeros(len(args_now), dtype="int") - 1
     is_merged_to    = np.zeros(len(args_now), dtype=np.int64) - 1
 
@@ -240,7 +273,10 @@ for i, ii in enumerate(range(nfiles)):
         t0 = time.time()
         halos_next, numhalos_next = read_multi_tree_slim(file_list_next)
         t00 = time.time()
-        cat_next       = CompaSOHaloCatalog(cat_list_next, None, cleaned_halos=False, load_subsamples=False, convert_units=True, unpack_bits=False, fields=["sigmav3d_L2com"], cleaned_fields="all", verbose=False)
+        if jj == 1:
+            cat_next       = CompaSOHaloCatalog(cat_list_next, None, cleaned_halos=False, load_subsamples=False, convert_units=True, unpack_bits=False, fields=["sigmav3d_L2com", "v_L2com"], cleaned_fields="all", verbose=False)
+        else:
+            cat_next       = CompaSOHaloCatalog(cat_list_next, None, cleaned_halos=False, load_subsamples=False, convert_units=True, unpack_bits=False, fields=["sigmav3d_L2com"], cleaned_fields="all", verbose=False)
         t1 = time.time()
         io_time += (t1-t0)
         info_read_time += (t1-t00)
@@ -248,6 +284,8 @@ for i, ii in enumerate(range(nfiles)):
         HaloMassNext   = halos_next["HaloMass"]
         HaloVmaxNext   = halos_next["HaloVmax"]
         HaloVrmsNext   = cat_next.halos["sigmav3d_L2com"]
+        if jj == 1:
+            HaloVelNext = cat_next.halos["v_L2com"]
         assert len(HaloVrmsNext) == len(HaloMassNext)
         HaloMassNext   = (HaloMassNext.data / mpart).astype(int)
         MainProgNext   = halos_next["MainProgenitor"]
@@ -279,6 +317,8 @@ for i, ii in enumerate(range(nfiles)):
             mbp_idx  = HaloIndexNext[match_index]
             mbp_vmax = HaloVmaxNext[match_index]
             mbp_vrms = HaloVrmsNext[match_index]
+            if jj == 1:
+                mbp_vel = HaloVelNext[match_index]
             #sys.exit()
             MainProg = MainProgNext[match_index]
 
@@ -286,6 +326,8 @@ for i, ii in enumerate(range(nfiles)):
             mbp_idx[mask]  = 0
             mbp_vmax[mask] = 0.0
             mbp_vrms[mask] = 0.0
+            if jj == 1:
+                mbp_vel[mask, :] = 0.0
             MainProg[mask] = 0
             mask_central   = mask[(mask>=args_now[0])&(mask<=args_now[-1])]
             mbp_idx[mask_central]  = -999
@@ -297,12 +339,16 @@ for i, ii in enumerate(range(nfiles)):
             mbp_mass  = np.zeros(numhalos.sum(), dtype=np.uint32)
             mbp_vmax  = np.zeros(numhalos.sum(), dtype=np.float32)
             mbp_vrms  = np.zeros(numhalos.sum(), dtype=np.float32)
+            if jj == 1:
+                mbp_vel = np.zeros((numhalos.sum(), 3), dtype=np.float32)
             if jj > 1:
                 MainProg  = np.zeros(numhalos.sum(), dtype=np.int64)
             prev_slab = np.load(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
             prev_mass = np.load(odir + "/temporary_mass_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
             prev_vmax = np.load(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
             prev_vrms = np.load(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
+            if jj == 1:
+                prev_vel = np.load(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
             if jj > 1:
                 prev_prog = np.load(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj-1], ii-1))
             assert len(prev_slab) == numhalos[0]
@@ -310,6 +356,8 @@ for i, ii in enumerate(range(nfiles)):
             mbp_mass[:numhalos[0]] = prev_mass
             mbp_vmax[:numhalos[0]] = prev_vmax
             mbp_vrms[:numhalos[0]] = prev_vrms
+            if jj == 1:
+                mbp_vel[:numhalos[0],:] = prev_vel
             if jj > 1:
                 MainProg[:numhalos[0]] = prev_prog
             #os.remove(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
@@ -320,6 +368,8 @@ for i, ii in enumerate(range(nfiles)):
             mid_mass  = np.load(odir + "/temporary_mass_matches_z%4.3f.%03d.npy"%(snapList[jj], ii))
             mid_vmax  = np.load(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], ii))
             mid_vrms  = np.load(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], ii))
+            if jj == 1:
+                mid_vel = np.load(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], ii))
             if jj > 1:
                 mid_prog  = np.load(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj-1], ii))
             assert len(mid_slab) == numhalos[1]
@@ -327,6 +377,8 @@ for i, ii in enumerate(range(nfiles)):
             mbp_mass[numhalos[0]:numhalos[0]+numhalos[1]] = mid_mass
             mbp_vmax[numhalos[0]:numhalos[0]+numhalos[1]] = mid_vmax
             mbp_vrms[numhalos[0]:numhalos[0]+numhalos[1]] = mid_vrms
+            if jj == 1:
+                mbp_vel[numhalos[0]:numhalos[0]+numhalos[1],:] = mid_vel
             if jj > 1:
                 MainProg[numhalos[0]:numhalos[0]+numhalos[1]] = mid_prog
             #os.remove(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], ii))
@@ -354,7 +406,8 @@ for i, ii in enumerate(range(nfiles)):
             mbp_idx[inds_to_match]  = HaloIndexNext[match_index]
             mbp_vmax[inds_to_match] = HaloVmaxNext[match_index]
             mbp_vrms[inds_to_match] = HaloVrmsNext[match_index]
-
+            if jj == 1:
+                mbp_vel[inds_to_match,:] = HaloVelNext[match_index]
             # Update MainProg to MainProgNext
             #if jj > 1:
             prev_prog_next = np.load(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], ii-1))
@@ -367,8 +420,11 @@ for i, ii in enumerate(range(nfiles)):
             mbp_idx[inds_to_match[mask]]  = 0
             mbp_vmax[inds_to_match[mask]] = 0.0
             mbp_vrms[inds_to_match[mask]] = 0.0
+            if jj == 1:
+                mbp_vel[inds_to_match[mask], :] = 0.0
             MainProg[inds_to_match[mask]] = 0
-            mask_central   = mask[(mask>=args_now[0])&(mask<=args_now[-1])]
+            #mask_central   = mask[(mask>=args_now[0])&(mask<=args_now[-1])]
+            mask_central = np.where((inds_to_match[mask]>=args_now[0])&(inds_to_match[mask]<=args_now[-1]))[0]
             mbp_idx[inds_to_match[mask_central]]  = -999
             MainProg[inds_to_match[mask_central]] = -999
         #print(MainProg)
@@ -390,10 +446,11 @@ for i, ii in enumerate(range(nfiles)):
             # Find neighbours
             t0 = time.time()
             neigh = tree.query(pos_now[halos_to_fix]+half_box, k=num_neigh, n_jobs=-1)[1]
+            #neigh = tree.query_ball_point(pos_now[halos_to_fix]+half_box, r=3.0)
             t1 = time.time()
             tree_time += (t1-t0)
             # Loop over dodgy ones
-            for nn in trange(len(halos_to_fix)):
+            for nn in range(len(halos_to_fix)):
                 halo_now   = halos_to_fix[nn]
                 indmax_now = indmax[halo_now]
                 arg_min    = np.where(mbp_idx[neigh[nn]] == indmax_now)[0]
@@ -408,6 +465,15 @@ for i, ii in enumerate(range(nfiles)):
                 if not mask2 == args_now[halo_now]:
                     #triplet_mergeto[halo_now] = mask2
                     is_merged_to[halo_now]    = HaloIndex_Start[mask2]
+                else:
+                    for kk in range(len(neigh[nn])):
+                        offset = offset_array[neigh[nn][kk]]
+                        end = offset + NumProgenitors[neigh[nn][kk]]
+                        progs_now = Progenitors[offset:end]
+                        if (MainProg_Start[args_now[halo_now]] in progs_now) & (neigh[nn][kk] != args_now[halo_now]):
+                            is_merged_to[halo_now] = HaloIndex_Start[neigh[nn][kk]]
+                            n_fixed += 1
+                            break
 
         t0 = time.time()
         # We can create some temporary files so that objects that are matched can be recalled later
@@ -416,6 +482,8 @@ for i, ii in enumerate(range(nfiles)):
         np.save(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), mbp_vmax.data[numhalos[0]:numhalos[0]+numhalos[1]])
         np.save(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), mbp_vrms.data[numhalos[0]:numhalos[0]+numhalos[1]])
         np.save(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), MainProg.data[numhalos[0]:numhalos[0]+numhalos[1]])
+        if jj == 1:
+            np.save(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], ii), mbp_vel.data[numhalos[0]:numhalos[0]+numhalos[1]])
         if ii == 0:
             file_prev = nfiles-1
             np.save(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], file_prev), mbp_idx.data[:numhalos[0]])
@@ -423,12 +491,16 @@ for i, ii in enumerate(range(nfiles)):
             np.save(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], file_prev), mbp_vmax.data[:numhalos[0]])
             np.save(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], file_prev), mbp_vrms.data[:numhalos[0]])
             np.save(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], file_prev), MainProg.data[:numhalos[0]])
+            if jj == 1:
+                np.save(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], file_prev), mbp_vel.data[:numhalos[0]])
             file_next = ii+1
             np.save(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_idx.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_mass_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_mass.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vmax.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vrms.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), MainProg.data[numhalos[0]+numhalos[1]:])
+            if jj == 1:
+                np.save(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vel.data[numhalos[0]+numhalos[1]:])
         elif (ii > 0) and (ii < nfiles-1):
             file_next = ii+1
             np.save(odir + "/temporary_index_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_idx.data[numhalos[0]+numhalos[1]:])
@@ -436,6 +508,8 @@ for i, ii in enumerate(range(nfiles)):
             np.save(odir + "/temporary_vmax_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vmax.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_vrms_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vrms.data[numhalos[0]+numhalos[1]:])
             np.save(odir + "/temporary_prog_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), MainProg.data[numhalos[0]+numhalos[1]:])
+            if jj == 1:
+                np.save(odir + "/temporary_vel_matches_z%4.3f.%03d.npy"%(snapList[jj], file_next), mbp_vel.data[numhalos[0]+numhalos[1]:])
         t1 = time.time()
         temp_save_time += (t1-t0)
         '''
@@ -530,4 +604,5 @@ print("Total sort time: %4.2fs"%sort_time)
 print("Total match time: %4.fs"%match_time)
 print("Total temporary save time: %4.2fs"%temp_save_time)
 print("Total write time: %4.2fs"%write_time)
+print("Total number of contact haloes fixed: %d"%n_fixed)
 sys.stdout.flush()
