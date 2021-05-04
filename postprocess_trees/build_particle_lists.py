@@ -2,6 +2,9 @@
 #! Filename: build_particle_lists.py
 
 from __future__ import division
+import os
+os.environ["OMP_NUM_THREADS"] = "6"
+
 from compaso_halo_catalog import CompaSOHaloCatalog
 from Abacus.fast_cksum.cksum_io import CksumWriter
 from astropy.table import Table
@@ -17,9 +20,9 @@ import glob
 import time
 import sys
 import gc
-import os
 
 warnings.filterwarnings("ignore")
+asdf.compression.set_decompression_options(nthreads=4)
 asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
 
 if len(sys.argv) < 3:
@@ -107,7 +110,7 @@ def float_trunc(a, zerobits):
     return a
 
 @njit
-def combine_mainprog(extra_halo_index, N_mainprog_host_initial):
+def combine_mainprog(extra_halo_index, N_mainprog_host_initial, N_mainprog):
     extra_counter = 1
     N_mainprog_combined = np.zeros((len(extra_halo_index)+1, N_mainprog_host_initial.size))
     N_mainprog_combined[0] = N_mainprog_host_initial
@@ -180,7 +183,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
     #print("Superslab number : %d (of %d) being done by processor %d"%(ii, nfiles_to_do, myrank))
     print("Superslab number: %d (of %d)"%(ii, nfiles_to_do))
     sys.stdout.flush()
-    
+
     # Load cleaned catalogue files
     clean_list = return_search_list(merge_dir + "/MergerHistory_Final*.asdf", ii)
     clean_cat  = read_multi_cat(clean_list)
@@ -204,7 +207,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
     numhalos   = cat.numhalos # Objects in superslab of interest run from [numhalos[0]:numhalos[0]+numhalos[1]]
     pidrvint_sub  = cat.subsamples
     num_subsamples = np.array([len(pidrvint_sub)], dtype=np.uint64)
-
+    cat = []; clean_cat=[]
     # Let's redefine noutA, noutB so that we also include L0 particles
     #A_start_indices = np.append(nstartA, nstartB[0])
     #B_start_indices = np.append(nstartB, num_subsamples)
@@ -216,19 +219,19 @@ for i, ii in enumerate(range(nfiles_to_do)):
 
     header["NumTimeSliceRedshiftsPrev"] = Nsnapshot
     header["TimeSliceRedshiftsPrev"]    = list(halo_snapList)
-        
+
     # In some rare instances, objects that are deleted have received merged particles. We need to reassign these particles.
     # First, find the "troublesome" objects that are marked with 0 particles but also receive merged particles
     mask_to_reassign    = np.isin(global_ind[indices_that_merge], merged_to)
     hosts_to_reassign   = indices_that_merge[mask_to_reassign]
-    
+
     while len(hosts_to_reassign) > 0:
         # Now, find the halos whose hosts are the "troublesome" objects
         matches = ms.match(merged_to, global_ind[hosts_to_reassign], arr2_sorted=False)
         halos_to_reassign   = np.where(matches != -1)[0]
         print("Found %d halos to reassign."%(len(halos_to_reassign)))
         sys.stdout.flush()
-        
+
         # Reassign their hosts as the hosts of the "troublesome" objects themselves
         merged_to[halos_to_reassign] = merged_to[hosts_to_reassign][matches[halos_to_reassign]]
 
@@ -239,7 +242,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
         index_diff = global_ind[hosts_to_reassign]-merged_to[hosts_to_reassign]
         mask_remove = np.where(index_diff == 0)[0]
         hosts_to_reassign = np.delete(hosts_to_reassign, mask_remove)
-        
+
     # Check one more level
     #mask_to_reassign    = np.isin(global_ind[indices_that_merge], merged_to)
     #hosts_to_reassign   = indices_that_merge[mask_to_reassign]
@@ -358,15 +361,15 @@ for i, ii in enumerate(range(nfiles_to_do)):
         extra_subsampB          = np.sum(noutB[extra_halo_global_index])
 
         N_mainprog_thishalo_initial = np.copy(N_mainprog[indices_this_slab[haloid]])
-            
+
         # Correct main progenitor info
-        N_mainprog[indices_this_slab[haloid]] = combine_mainprog(extra_halo_global_index, N_mainprog_thishalo_initial)
+        N_mainprog[indices_this_slab[haloid]] = combine_mainprog(extra_halo_global_index, N_mainprog_thishalo_initial, N_mainprog)
         for extra in extra_halo_global_index:
             N_mainprog[extra] = 0
         #if haloid == 8276:
         #    print(N_mainprog[indices_this_slab[haloid]])
         #    sys.exit()
-            
+
         '''
         # Correct main progenitor info
         for extra in extra_halo_global_index:
@@ -375,7 +378,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
             N_mainprog_combined[extra_counter] = N_mainprog_extra
             extra_counter += 1
             N_mainprog[extra] = 0
-            
+
         N_mainprog_final = np.zeros(N_mainprog_combined.shape[1], dtype="int")
 
         for kk in range(len( N_mainprog_final)):
@@ -395,7 +398,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
                     N_mainprog[indices_this_slab[haloid]] = N_mainprog[indices_this_slab[haloid]][mask] + N_mainprog_extra[mask]
                 N_mainprog[extra] = 0
             '''
-            
+
         #assert (N[indices_this_slab[haloid]]+extra_npart) == N_total[indices_this_slab[haloid]]
 
         # Update indices
@@ -432,26 +435,27 @@ for i, ii in enumerate(range(nfiles_to_do)):
 
     p_indexing["N_total"] = N[numhalos[0]:numhalos[0]+numhalos[1]] + p_indexing["N_merge"]
     p_indexing["N_total"][deleted_halos] = 0
+    N_mainprog[indices_this_slab][deleted_halos] = 0 
     #break
 
     # Done looping over haloes in this file. Time to write out data
     data_tree = {"data":{
         "is_merged_to": merged_to[numhalos[0]:numhalos[0]+numhalos[1]],
         "haloindex": global_ind[numhalos[0]:numhalos[0]+numhalos[1]],
-        "N_total": p_indexing["N_total"].data,
-        "N_merge": p_indexing["N_merge"].data,
+        "N_total": p_indexing["N_total"].data.copy(),
+        "N_merge": p_indexing["N_merge"].data.copy(),
         "N_mainprog": N_mainprog[indices_this_slab],
-        "vcirc_max_L2com_mainprog": p_indexing["vcirc_max_L2com_mainprog"].data,
-        "sigmav3d_L2com_mainprog": p_indexing["sigmav3d_L2com_mainprog"].data,
-        "haloindex_mainprog": p_indexing["haloindex_mainprog"].data,
-        "v_L2com_mainprog": p_indexing["v_L2com_mainprog"].data,
+        "vcirc_max_L2com_mainprog": p_indexing["vcirc_max_L2com_mainprog"].data.copy(),
+        "sigmav3d_L2com_mainprog": p_indexing["sigmav3d_L2com_mainprog"].data.copy(),
+        "haloindex_mainprog": p_indexing["haloindex_mainprog"].data.copy(),
+        "v_L2com_mainprog": p_indexing["v_L2com_mainprog"].data.copy(),
         #"npoutA_L0L1": noutA_L0L1[numhalos[0]:numhalos[0]+numhalos[1]],
         #"npoutB_L0L1": noutB_L0L1[numhalos[0]:numhalos[0]+numhalos[1]],
-        "npstartA_merge": p_indexing["npstartA_merge"].data,
-        "npoutA_merge": p_indexing["npoutA_merge"].data,
+        "npstartA_merge": p_indexing["npstartA_merge"].data.copy(),
+        "npoutA_merge": p_indexing["npoutA_merge"].data.copy(),
         #"npoutA_L0L1_merge": p_indexing["npoutA_L0L1_merge"].data,
-        "npstartB_merge": p_indexing["npstartB_merge"].data,
-        "npoutB_merge": p_indexing["npoutB_merge"].data},
+        "npstartB_merge": p_indexing["npstartB_merge"].data.copy(),
+        "npoutB_merge": p_indexing["npoutB_merge"].data.copy()},
         #"npoutB_L0L1_merge": p_indexing["npoutB_L0L1_merge"].data,
         "header": header
     }
@@ -468,16 +472,16 @@ for i, ii in enumerate(range(nfiles_to_do)):
     # Write out new particles
     if isPrimary:
         data_tree = {"data":{
-            "packedpid_A": particles["pid_A"][:counter_A].data,
-            "packedpid_B": particles["pid_B"][:counter_B].data,
-            "rvint_A": particles["rvint_A"][:counter_A].data, # Trim to last filled value
-            "rvint_B": particles["rvint_B"][:counter_B].data},
+            "packedpid_A": particles["pid_A"][:counter_A].data.copy(),
+            "packedpid_B": particles["pid_B"][:counter_B].data.copy(),
+            "rvint_A": particles["rvint_A"][:counter_A].data.copy(), # Trim to last filled value
+            "rvint_B": particles["rvint_B"][:counter_B].data.copy()},
             "header": header
         }
     else:
         data_tree = {"data":{
-            "packedpid_A": particles["pid_A"][:counter_A].data,
-            "packedpid_B": particles["pid_B"][:counter_B].data},
+            "packedpid_A": particles["pid_A"][:counter_A].data.copy(),
+            "packedpid_B": particles["pid_B"][:counter_B].data.copy()},
             "header": header
         }
 
@@ -487,6 +491,12 @@ for i, ii in enumerate(range(nfiles_to_do)):
     asdf_fn = clean_dir + "/cleaned_rvpid_%03d.asdf"%ii
     with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
         af.write_to(fp, all_array_compression="blsc")
+
+    # Free memory
+    N=[]; nstartA=[]; nstartB=[]; noutA=[]; noutB=[]; pidrvint_sub=[]; N_mainprog=[]
+    global_ind=[]; merged_to=[]
+    particles=[]; p_indexing=[]
+    data_tree=[]
 
     gc.collect()
 
