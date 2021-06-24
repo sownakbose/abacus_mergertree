@@ -46,23 +46,49 @@ if "small" in sim:
 
 cat_dir   = base_dir + sim + "/halos/"  + zout + "/halo_info/"
 
-merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
+#merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
+merge_dir = "/global/cscratch1/sd/sbose/mergerhistory/%s/"%(sim) + zout
 #merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 #merge_dir = "./mergerhistory/%s/"%(sim) + zout
 if "small" in sim:
-	clean_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaned_halos/small/%s/halos/"%(sim) + zout
+	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_halo_info/"
+	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_rvpid/"
 else:
-	clean_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaned_halos/%s/halos/"%(sim) + zout
+	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
+	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
 #clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 #clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
+
+z_primary  = [0.100, 0.200, 0.300, 0.400, 0.500, 0.800, 1.100, 1.400, 1.700, 2.000, 2.500, 3.000]
+
+# Check if this is a primary redshift or not
+if os.path.isdir(base_dir + sim + "/halos/"  + zout + "/halo_rv_A"):
+	#assert snapin in z_primary
+	print("Primary redshift.")
+	isPrimary = True
+else:
+	#assert snapin not in z_primary
+	print("Secondary redshift.")
+	isPrimary = False
+
+# Check if we've already done cleaning
+n_haloinfo = len(glob.glob(clean_dir_halo + "/cleaned_halo_info*.asdf"))
+n_rvpid    = len(glob.glob(clean_dir_rvpid + "/cleaned_rvpid*.asdf"))
+nslabs_tot = len(glob.glob(cat_dir + "/halo_info*.asdf"))
+
+if n_haloinfo == n_rvpid == nslabs_tot:
+	print("%s, z=%4.3f has already been processed! Exiting now."%(sim, snapin))
+	sys.exit(0)
 
 # Test
 #disk_dir = base_dir
 #merge_dir = "/global/cscratch1/sd/sbose/subsample_B_particles/mergerhistory/%s/"%(sim)+zout
 #clean_dir = "/global/cscratch1/sd/sbose/subsample_B_particles/cleaned_halos/%s/halos/"%(sim)+zout
 
-if not os.path.exists(clean_dir):
-	os.makedirs(clean_dir, exist_ok=True)
+if not os.path.exists(clean_dir_halo):
+	os.makedirs(clean_dir_halo, exist_ok=True)
+if not os.path.exists(clean_dir_rvpid):
+	os.makedirs(clean_dir_rvpid, exist_ok=True)
 
 unq_prev_files = sorted(glob.glob(merge_dir + "/temporary_mass_matches_z*.000.npy"))
 Nsnapshot = len(unq_prev_files)
@@ -78,18 +104,6 @@ halo_snapList = halo_snapList[:len(snapList)]
 
 #size      = MPI.COMM_WORLD.Get_size()
 #myrank    = MPI.COMM_WORLD.Get_rank()
-
-z_primary  = [0.100, 0.200, 0.300, 0.400, 0.500, 0.800, 1.100, 1.400, 1.700, 2.000, 2.500, 3.000]
-
-# Check if this is a primary redshift or not
-if os.path.isdir(base_dir + sim + "/halos/"  + zout + "/halo_rv_A"):
-	#assert snapin in z_primary
-	print("Primary redshift.")
-	isPrimary = True
-else:
-	#assert snapin not in z_primary
-	print("Secondary redshift.")
-	isPrimary = False
 
 sys.stdout.flush()
 
@@ -672,7 +686,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
 	#outfile = asdf.AsdfFile(data_tree)
 	#outfile.write_to(clean_dir + "/cleaned_halo_info_%03d.asdf"%ii)
 	#outfile.close()
-	asdf_fn = clean_dir + "/cleaned_halo_info_%03d.asdf"%ii
+	asdf_fn = clean_dir_halo + "/cleaned_halo_info_%03d.asdf"%ii
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
 		af.write_to(fp, all_array_compression="blsc")
 
@@ -717,7 +731,7 @@ for i, ii in enumerate(range(nfiles_to_do)):
 	#outfile = asdf.AsdfFile(data_tree)
 	#outfile.write_to(clean_dir + "/cleaned_rvpid_%03d.asdf"%ii)
 	#outfile.close()
-	asdf_fn = clean_dir + "/cleaned_rvpid_%03d.asdf"%ii
+	asdf_fn = clean_dir_rvpid + "/cleaned_rvpid_%03d.asdf"%ii
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
 		af.write_to(fp, all_array_compression="blsc")
 
@@ -741,7 +755,8 @@ for f in glob.glob(merge_dir+"/*.npy"):
 
 print("Combining checksums...")
 os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(merge_dir, merge_dir))
-os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(clean_dir, clean_dir))
+os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(clean_dir_halo, clean_dir_halo))
+os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(clean_dir_rvpid, clean_dir_rvpid))
 
 
 tfinish = time.time()

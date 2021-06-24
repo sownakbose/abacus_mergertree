@@ -5,6 +5,7 @@ from __future__ import division
 from scipy.stats import binned_statistic
 from Abacus.fast_cksum.cksum_io import CksumWriter
 import match_searchsorted as ms
+from multithreaded_io_queue import MultithreadedIOQueue
 #from mpi4py import MPI
 from tqdm import *
 import numpy as np
@@ -22,7 +23,7 @@ from astropy.table import Table
 
 from asdf import AsdfFile, Stream
 
-asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
+asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=6)
 
 warnings.filterwarnings("ignore")
 

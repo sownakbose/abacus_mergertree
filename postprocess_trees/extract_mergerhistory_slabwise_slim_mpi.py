@@ -11,14 +11,15 @@ from compaso_halo_catalog import CompaSOHaloCatalog
 from multithreaded_io_queue import MultithreadedIOQueue
 import match_searchsorted as ms
 from scipy.spatial import cKDTree
+#from abacusnbody.data import asdf
 #from mpi4py import MPI
 from numba import njit
 from tqdm import *
 import numpy as np
 import h5py as h5
 import warnings
-import time
 import asdf
+import time
 import glob
 import sys
 import gc
@@ -43,7 +44,7 @@ if len(sys.argv) == 5:
         outdir   = sys.argv[4]
         print("Writing to custom directory: %s"%outdir)
 else:
-        outdir   = "/project/projectdirs/desi/cosmosim/Abacus/mergerhistory/"
+        outdir   = "/global/cscratch1/sd/sbose/mergerhistory/"
         print("Writing to default directory: %s"%outdir)
 snapshot = "z%4.3f"%(snapin)
 
@@ -582,6 +583,7 @@ for i, ii in enumerate(range(nfiles)):
 	t0 = time.time()
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
 		af.write_to(fp, all_array_compression="blsc")
+		#af.write_to(fp, all_array_compression="blsc", compression_kwargs=dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4))
 	t1 = time.time()
 	write_time += (t1-t0)
 
