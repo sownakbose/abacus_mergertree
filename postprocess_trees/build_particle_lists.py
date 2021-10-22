@@ -80,6 +80,18 @@ if n_haloinfo == n_rvpid == nslabs_tot:
 	print("%s, z=%4.3f has already been processed! Exiting now."%(sim, snapin))
 	sys.exit(0)
 
+# Perhaps we only need to restart from a checkpoint?
+try:
+        assert n_haloinfo == n_rvpid
+        start_file_num = n_haloinfo
+except AssertionError:
+        start_file_num = n_haloinfo-1
+        if start_file_num < 0:
+                start_file_num == 0
+if start_file_num > 0:
+        print("Restarting from superslab number %d."%(start_file_num))
+        sys.stdout.flush()
+        
 # Test
 #disk_dir = base_dir
 #merge_dir = "/global/cscratch1/sd/sbose/subsample_B_particles/mergerhistory/%s/"%(sim)+zout
@@ -256,7 +268,7 @@ nfiles_to_do = len(glob.glob(merge_dir + "/MergerHistory_Final*.asdf"))
 
 tbegin = time.time()
 
-for i, ii in enumerate(range(nfiles_to_do)):
+for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 #for i, ii in enumerate(range(0, 1)):
 
 	#if i % size != myrank: continue

@@ -105,6 +105,11 @@ snapList  = snapList[argSnap:]
 halo_snapList = halo_snapList[argSnap:]
 halo_snapList = halo_snapList[:len(snapList)]
 
+# HACK JUST FOR AbacusSummit_huge_c000_ph202
+if sim == "AbacusSummit_huge_c000_ph202":
+        snapList      = snapList[:-1]
+        halo_snapList = halo_snapList[:-1]
+
 Nsnapshot = len(snapList)
 
 # Bins
