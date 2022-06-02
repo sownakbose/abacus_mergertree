@@ -115,9 +115,9 @@ if not os.path.exists(odir):
 	os.makedirs(odir)
 
 if (halo_type == "Abacus_Cosmos") or (halo_type == "Abacus_asdf") or (halo_type == "Abacus_slabwise"):
-	steps  = sorted(glob.glob(base))
+	steps       = sorted(glob.glob(base), key = lambda x: float(x.split("z")[-1]))
 else:
-	steps  = sorted(glob.glob(base+"Step*"))
+	steps       = sorted(glob.glob(base+"Step*"), key = lambda x: float(x.split("z")[-1]))
 
 if (halo_type == "Abacus_SO") or (halo_type == "Abacus_FOF"):
 		# Reverse list in descending order of slice Nr

@@ -64,11 +64,11 @@ factor    = 2.0
 #base    += ".%d.asdf"
 #print(basedir)
 if "small" in sim:
-	nfiles   = len(glob.glob( basedir + "/merger/small/%s/"%(sim) +"associations_z0.500.*.asdf" ))
 	unique_files = glob.glob( basedir + "/merger/small/%s/"%(sim) + "associations_z*.0.asdf" )
+	nfiles    = len(glob.glob( unique_files[0][:-7] + ".*.asdf" ))
 else:
-	nfiles   = len(glob.glob( basedir + "/merger/%s/"%(sim) +"associations_z0.500.*.asdf" ))
 	unique_files = glob.glob( basedir + "/merger/%s/"%(sim) + "associations_z*.0.asdf" )
+	nfiles    = len(glob.glob( unique_files[0][:-7] + ".*.asdf" ))
 
 # Since some halo_info output times != association output times
 if "small" in sim:
