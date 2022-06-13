@@ -36,9 +36,9 @@ sim       = sys.argv[1]
 snapin    = float(sys.argv[2])
 zout      = "z%4.3f"%(snapin)
 
-disk_dir  = "/global/cfs/cdirs/desi/cosmosim/Abacus/"
+disk_dir  = "/mnt/store1/sbose/"#"/global/cfs/cdirs/desi/cosmosim/Abacus/"
 base_dir  = "/global/cscratch1/sd/sbose/subsample_B_particles/"
-#base_dir  = disk_dir
+base_dir  = disk_dir
 
 if "small" in sim:
 	disk_dir += "/small/"
@@ -47,15 +47,15 @@ if "small" in sim:
 cat_dir   = base_dir + sim + "/halos/"  + zout + "/halo_info/"
 
 #merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
-merge_dir = "/global/cscratch1/sd/sbose/mergerhistory/%s/"%(sim) + zout
+merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
 #merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 #merge_dir = "./mergerhistory/%s/"%(sim) + zout
 if "small" in sim:
 	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_halo_info/"
 	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_rvpid/"
 else:
-	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
-	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
+	clean_dir_halo  = "/mnt/store1/sbose/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
+	clean_dir_rvpid = "/mnt/store1/sbose/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
 #clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 #clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
 
@@ -269,7 +269,7 @@ nfiles_to_do = len(glob.glob(merge_dir + "/MergerHistory_Final*.asdf"))
 tbegin = time.time()
 
 for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
-#for i, ii in enumerate(range(0, 1)):
+#for i, ii in enumerate(range(5, 7)):
 
 	#if i % size != myrank: continue
 	#print("Superslab number : %d (of %d) being done by processor %d"%(ii, nfiles_to_do, myrank))
@@ -339,23 +339,40 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#current, peak = tracemalloc.get_traced_memory()
 	#print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 
+	while_counter = 0
 	while len(hosts_to_reassign) > 0:
 		# Now, find the halos whose hosts are the "troublesome" objects
 		matches = ms.match(merged_to, global_ind[hosts_to_reassign], arr2_sorted=False)
 		halos_to_reassign   = np.where(matches != -1)[0]
-		print("Found %d halos to reassign."%(len(halos_to_reassign)))
-		sys.stdout.flush()
 
-		# Reassign their hosts as the hosts of the "troublesome" objects themselves
-		merged_to[halos_to_reassign] = merged_to[hosts_to_reassign][matches[halos_to_reassign]]
-
-		mask_to_reassign    = np.isin(global_ind[indices_that_merge], merged_to)
-		hosts_to_reassign   = indices_that_merge[mask_to_reassign]
-
-		# Remove objects that are now marked as merging onto "themselves"
-		index_diff = global_ind[hosts_to_reassign]-merged_to[hosts_to_reassign]
-		mask_remove = np.where(index_diff == 0)[0]
-		hosts_to_reassign = np.delete(hosts_to_reassign, mask_remove)
+		if (while_counter > 1) and (len(halos_to_reassign) == num_reassign_prev):
+			# Exceptionally rare: cycle hasn't managed to reduce the number of halos that need to be reassigned
+			# In this case, it's likely due to all objects pointing to one another as hosts
+			# Check that this is the case first
+			mask_all_self_reassign = np.isin(merged_to[halos_to_reassign], global_ind[halos_to_reassign])
+			assert np.all(mask_all_self_reassign==True)
+			# Now that we've passed this, make the most massive halo the "receiver"
+			host_npart_argmax = np.argmax(N[halos_to_reassign])
+			mask_npart_argmax = halos_to_reassign[host_npart_argmax]
+			# Set merging index for all these to most massive host
+			merged_to[halos_to_reassign] = global_ind[mask_npart_argmax]
+			# Set merging index for this object to -1
+			merged_to[mask_npart_argmax] = -1
+			# Break the loop 
+			hosts_to_reassign = []
+		else:
+			print("Found %d halos to reassign."%(len(halos_to_reassign)))
+			sys.stdout.flush()
+			# Reassign their hosts as the hosts of the "troublesome" objects themselves
+			merged_to[halos_to_reassign] = merged_to[hosts_to_reassign][matches[halos_to_reassign]]
+			mask_to_reassign    = np.isin(global_ind[indices_that_merge], merged_to)
+			hosts_to_reassign   = indices_that_merge[mask_to_reassign]
+			# Remove objects that are now marked as merging onto "themselves"
+			index_diff = global_ind[hosts_to_reassign]-merged_to[hosts_to_reassign]
+			mask_remove = np.where(index_diff == 0)[0]
+			hosts_to_reassign = np.delete(hosts_to_reassign, mask_remove)
+			num_reassign_prev = len(halos_to_reassign)
+			while_counter += 1	
 
 	matches = []
 	# Check one more level
@@ -370,8 +387,8 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	try:
 		merge_index_this_slab_min    = np.argmin(abs(indices_that_merge-indices_this_slab[0]))
 		merge_index_this_slab_max    = np.argmin(abs(indices_that_merge-indices_this_slab[-1]))
-		indices_that_merge_this_slab = indices_that_merge[merge_index_this_slab_min:merge_index_this_slab_max]
-		tot_particles_to_add = int(np.sum(noutB[indices_that_merge_this_slab]) * 1.2) # 20% buffer
+		indices_that_merge_this_slab = indices_that_merge[merge_index_this_slab_min:merge_index_this_slab_max+1]
+		tot_particles_to_add = int( np.max((np.sum(noutA[indices_that_merge_this_slab]), np.sum(noutB[indices_that_merge_this_slab])) ) * 1.2) # 20% buffer
 	except ValueError: # when no indices_that_merge
 		tot_particles_to_add = 1
 
@@ -761,7 +778,6 @@ print("Deleting temporary files...")
 
 #tracemalloc.stop()
 
-
 for f in glob.glob(merge_dir+"/*.npy"):
 	os.remove(f)
 
@@ -769,7 +785,6 @@ print("Combining checksums...")
 os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(merge_dir, merge_dir))
 os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(clean_dir_halo, clean_dir_halo))
 os.system("$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32"%(clean_dir_rvpid, clean_dir_rvpid))
-
 
 tfinish = time.time()
 print("Took %4.2fs."%(tfinish-tbegin))
