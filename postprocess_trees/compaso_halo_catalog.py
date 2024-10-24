@@ -234,7 +234,9 @@ from bitpacked import unpack_rvint, unpack_pids, AUXPID
 # Default to 4 decompression threads, or fewer if fewer cores are available
 DEFAULT_BLOSC_THREADS = 4
 DEFAULT_BLOSC_THREADS = max(1, min(len(os.sched_getaffinity(0)), DEFAULT_BLOSC_THREADS))
-asdf.compression.set_decompression_options(nthreads=DEFAULT_BLOSC_THREADS)
+# asdf.compression.set_decompression_options(nthreads=DEFAULT_BLOSC_THREADS)
+import abacusnbody.data.asdf
+abacusnbody.data.asdf.set_nthreads(DEFAULT_BLOSC_THREADS)
 
 class CompaSOHaloCatalog:
     """

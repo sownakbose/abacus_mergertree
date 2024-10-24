@@ -3,7 +3,7 @@
 
 from __future__ import division
 import os
-os.environ["OMP_NUM_THREADS"] = "6"
+# os.environ["OMP_NUM_THREADS"] = "6"
 
 from scipy.stats import binned_statistic
 from Abacus.fast_cksum.cksum_io import CksumWriter
@@ -29,8 +29,10 @@ from astropy.table import Table
 
 from asdf import AsdfFile, Stream
 
-asdf.compression.set_decompression_options(nthreads=4)
-asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
+# asdf.compression.set_decompression_options(nthreads=4)
+COMPRESSION_OPTIONS = dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4)
+import abacusnbody.data.asdf
+abacusnbody.data.asdf.set_nthreads(4)
 
 warnings.filterwarnings("ignore")
 
@@ -587,7 +589,7 @@ for i, ii in enumerate(range(nfiles)):
 
 	t0 = time.time()
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
-		af.write_to(fp, all_array_compression="blsc")
+		af.write_to(fp, all_array_compression="blsc", compression_kwargs=COMPRESSION_OPTIONS)
 		#af.write_to(fp, all_array_compression="blsc", compression_kwargs=dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4))
 	t1 = time.time()
 	write_time += (t1-t0)

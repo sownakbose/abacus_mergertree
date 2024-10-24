@@ -23,8 +23,9 @@ import sys
 import gc
 
 warnings.filterwarnings("ignore")
-asdf.compression.set_decompression_options(nthreads=4)
-asdf.compression.set_compression_options(typesize="auto", shuffle="shuffle", asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
+COMPRESSION_OPTIONS = dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4)
+import abacusnbody.data.asdf
+abacusnbody.data.asdf.set_nthreads(4)
 
 #import tracemalloc
 #tracemalloc.start()
@@ -36,8 +37,8 @@ sim       = sys.argv[1]
 snapin    = float(sys.argv[2])
 zout      = "z%4.3f"%(snapin)
 
-disk_dir  = "/mnt/store1/sbose/"#"/global/cfs/cdirs/desi/cosmosim/Abacus/"
-base_dir  = "/global/cscratch1/sd/sbose/subsample_B_particles/"
+disk_dir  = os.environ['PSCRATCH'] + '/' #"/global/cfs/cdirs/desi/cosmosim/Abacus/"
+# base_dir  = "/global/cscratch1/sd/sbose/subsample_B_particles/"
 base_dir  = disk_dir
 
 if "small" in sim:
@@ -47,19 +48,20 @@ if "small" in sim:
 cat_dir   = base_dir + sim + "/halos/"  + zout + "/halo_info/"
 
 #merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
-merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
+# merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
 #merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 #merge_dir = "./mergerhistory/%s/"%(sim) + zout
+merge_dir = os.environ['PSCRATCH'] + '/mergerhistory/%s/' % sim + zout
 if "small" in sim:
 	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_halo_info/"
 	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_rvpid/"
 else:
-	clean_dir_halo  = "/mnt/store1/sbose/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
-	clean_dir_rvpid = "/mnt/store1/sbose/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
+	clean_dir_halo  = os.environ['PSCRATCH'] + "/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
+	clean_dir_rvpid = os.environ['PSCRATCH'] + "/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
 #clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 #clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
 
-z_primary  = [0.100, 0.200, 0.300, 0.400, 0.500, 0.800, 1.100, 1.400, 1.700, 2.000, 2.500, 3.000]
+# z_primary  = [0.100, 0.200, 0.300, 0.400, 0.500, 0.800, 1.100, 1.400, 1.700, 2.000, 2.500, 3.000]
 
 # Check if this is a primary redshift or not
 if os.path.isdir(base_dir + sim + "/halos/"  + zout + "/halo_rv_A"):
@@ -356,7 +358,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 			mask_npart_argmax = halos_to_reassign[host_npart_argmax]
 			# Set merging index for all these to most massive host
 			merged_to[halos_to_reassign] = global_ind[mask_npart_argmax]
-			# Set merging index for this object to -1
+			# Set merging index for this object to -1
 			merged_to[mask_npart_argmax] = -1
 			# Break the loop 
 			hosts_to_reassign = []
@@ -717,7 +719,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#outfile.close()
 	asdf_fn = clean_dir_halo + "/cleaned_halo_info_%03d.asdf"%ii
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
-		af.write_to(fp, all_array_compression="blsc")
+		af.write_to(fp, all_array_compression="blsc", compression_kwargs=COMPRESSION_OPTIONS)
 
 	# Free memory
 	data_tree=[]; p_indexing=[]; N_mainprog=[]; merged_to=[]; global_ind=[]; N_merge=[]; npstartA_merge=[]; npstartB_merge=[]; npoutA_merge=[]; npoutB_merge=[]
@@ -762,7 +764,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#outfile.close()
 	asdf_fn = clean_dir_rvpid + "/cleaned_rvpid_%03d.asdf"%ii
 	with asdf.AsdfFile(data_tree) as af, CksumWriter(asdf_fn) as fp:
-		af.write_to(fp, all_array_compression="blsc")
+		af.write_to(fp, all_array_compression="blsc", compression_kwargs=COMPRESSION_OPTIONS)
 
 	#tend = time.time()
 	#print("Writing took: %4.2fs"%(tend-tstart))
