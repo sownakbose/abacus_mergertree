@@ -542,7 +542,7 @@ for jj in range(num_epochs):
 
 		# Now, we need to find the list of neighbours in the next_output step
 		t_query_1  = time.time()
-		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, n_jobs = -1)[1]
+		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, workers = -1)[1]
 		t_query_2  = time.time()
 		tquery     = t_query_2-t_query_1
 		print("Took %4.2fs to query all neighbours."%(tquery))
@@ -554,7 +554,7 @@ for jj in range(num_epochs):
 			print("Finding neighbours for subsequent catalogue.")
 			sys.stdout.flush()
 			t_query_1   = time.time()
-			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = 75, n_jobs = -1)[1]
+			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = 75, workers = -1)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))

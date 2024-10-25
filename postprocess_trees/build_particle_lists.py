@@ -670,7 +670,14 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 		for extra in extra_halo_global_index:
 			N_mainprog[extra] = 0
 
-	N_mainprog[indices_this_slab][deleted_halos] = 0
+	if deleted_halos:
+		N_mainprog[indices_this_slab][deleted_halos] = 0
+		N_mainprog_out = N_mainprog[indices_this_slab]
+	else:
+		# LHG: the last 2 redshifts don't have proper cleaning.
+		# That's probably okay. But why are we getting an error now?
+		# How did this work for Summit?
+		N_mainprog_out = np.zeros(len(indices_this_slab), dtype=np.uint32)
 	#break
 	#sys.exit()
 	# MEMORY
@@ -690,7 +697,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 		"N_total": p_indexing["N_total"].data.copy(),
 		#"N_merge": p_indexing["N_merge"].data.copy(),
 		"N_merge": N_merge,
-		"N_mainprog": N_mainprog[indices_this_slab],
+		"N_mainprog": N_mainprog_out,
 		#"vcirc_max_L2com_mainprog": p_indexing["vcirc_max_L2com_mainprog"].data.copy(),
 		#"sigmav3d_L2com_mainprog": p_indexing["sigmav3d_L2com_mainprog"].data.copy(),
 		"vcirc_max_L2com_mainprog": vcirc_max_L2com_mainprog,

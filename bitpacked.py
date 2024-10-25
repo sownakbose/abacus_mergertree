@@ -121,14 +121,14 @@ def unpack_pids(packed, box, ppd, unpack_type='All', float_dtype=np.float32):
 
         justpid = np.empty(N, dtype=np.int64)
         lagr_pos = np.empty((N,3), dtype=float_dtype)
-        tagged = np.empty(N, dtype=np.bool8)
+        tagged = np.empty(N, dtype=np.bool)
         density = np.empty(N, dtype=float_dtype)
 
     else:
 
         justpid = np.empty(N, dtype=np.int64)
         lagr_pos = np.empty((1,3), dtype=float_dtype)
-        tagged = np.empty(0, dtype=np.bool8)
+        tagged = np.empty(0, dtype=np.bool)
         density = np.empty(N, dtype=float_dtype)
 
 

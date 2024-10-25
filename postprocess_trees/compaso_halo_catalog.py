@@ -222,9 +222,9 @@ import astropy.table
 from astropy.table import Table
 import asdf
 
-import asdf.compression
+import asdf._compression
 try:
-    asdf.compression.validate('blsc')
+    asdf._compression.validate('blsc')
 except:
     # Note: this is a temporary solution until blosc is integrated into ASDF, or until we package a pluggable decompressor
     exit('Error: your ASDF installation does not support Blosc compression.  Please install the fork with Blosc support with the following command: "pip install git+https://github.com/lgarrison/asdf.git"')
@@ -772,7 +772,7 @@ class CompaSOHaloCatalog:
             # total number of particles
             for af in particle_afs:
                 np_per_file += [len(af[self.data_key][asdf_col_name])]
-            np_total = np.sum(np_per_file)
+            np_total = np.sum(np_per_file, dtype=np.uint64)
             particle_AB_afs += particle_afs
 
         np_per_file = np.array(np_per_file)

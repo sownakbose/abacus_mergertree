@@ -503,8 +503,8 @@ for i, ii in enumerate(range(nfiles)):
 
 			# Find neighbours
 			t0 = time.time()
-			#neigh = tree.query(pos_now[halos_to_fix]+half_box, k=num_neigh, n_jobs=-1)[1]
-			neigh = tree.query_ball_point(pos_now[halos_to_fix]+half_box, r=3.0, n_jobs=-1)
+			#neigh = tree.query(pos_now[halos_to_fix]+half_box, k=num_neigh, workers=-1)[1]
+			neigh = tree.query_ball_point(pos_now[halos_to_fix]+half_box, r=3.0, workers=-1)
 			t1 = time.time()
 			tree_time += (t1-t0)
 
