@@ -2,29 +2,32 @@
 #! Filename: build_particle_lists.py
 
 from __future__ import division
-import os
-os.environ["OMP_NUM_THREADS"] = "6"
 
-from compaso_halo_catalog import CompaSOHaloCatalog
-from Abacus.fast_cksum.cksum_io import CksumWriter
-from multithreaded_reader import multithreaded_read
-from astropy.table import Table
-#from mpi4py import MPI
-from numba import njit
-from tqdm import *
+import os
+
+import gc
+import glob
+import sys
+import time
+import warnings
+
+import abacusnbody.data.asdf
+import asdf
 import match_searchsorted as ms
 import numpy as np
-import subprocess
-import warnings
-import asdf
-import glob
-import time
-import sys
-import gc
+
+# from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
+from Abacus.fast_cksum.cksum_io import CksumWriter
+from astropy.table import Table
+from multithreaded_reader import multithreaded_read
+
+#from mpi4py import MPI
+from numba import njit
+
+from compaso_halo_catalog import CompaSOHaloCatalog
 
 warnings.filterwarnings("ignore")
 COMPRESSION_OPTIONS = dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4)
-import abacusnbody.data.asdf
 abacusnbody.data.asdf.set_nthreads(4)
 
 #import tracemalloc
@@ -34,10 +37,11 @@ if len(sys.argv) < 3:
 	sys.exit("Usage: python build_particle_lists.py sim snapin")
 
 sim       = sys.argv[1]
-snapin    = float(sys.argv[2])
+snapin    = float(sys.argv[3])
 zout      = "z%4.3f"%(snapin)
 
-disk_dir  = os.environ['PSCRATCH'] + '/' #"/global/cfs/cdirs/desi/cosmosim/Abacus/"
+# disk_dir  = os.environ['PSCRATCH'] + '/' #"/global/cfs/cdirs/desi/cosmosim/Abacus/"
+disk_dir = sys.argv[2] + '/'
 # base_dir  = "/global/cscratch1/sd/sbose/subsample_B_particles/"
 base_dir  = disk_dir
 
@@ -51,13 +55,13 @@ cat_dir   = base_dir + sim + "/halos/"  + zout + "/halo_info/"
 # merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
 #merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 #merge_dir = "./mergerhistory/%s/"%(sim) + zout
-merge_dir = os.environ['PSCRATCH'] + '/mergerhistory/%s/' % sim + zout
+merge_dir = disk_dir + '/mergerhistory/%s/' % sim + zout
 if "small" in sim:
 	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_halo_info/"
 	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_rvpid/"
 else:
-	clean_dir_halo  = os.environ['PSCRATCH'] + "/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
-	clean_dir_rvpid = os.environ['PSCRATCH'] + "/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
+	clean_dir_halo  = disk_dir + "/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
+	clean_dir_rvpid = disk_dir + "/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
 #clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 #clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
 
@@ -106,6 +110,8 @@ if not os.path.exists(clean_dir_rvpid):
 
 unq_prev_files = sorted(glob.glob(merge_dir + "/temporary_mass_matches_z*.000.npy"))
 Nsnapshot = len(unq_prev_files)
+if Nsnapshot == 0:
+	raise ValueError(f"No previous snapshots found in {merge_dir:s}")
 snapList  = sorted([float(sub.split('z')[-1][:-8]) for sub in unq_prev_files])
 
 # Since some halo_info output times != association output times
@@ -660,7 +666,8 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 		# Get the slab number
 		#slabid, haloid = unpack_inds(unq_haloidx[jj])
 		slabid, haloid = slabid_list[jj-1], haloid_list[jj-1]
-		if slabid != ii: continue
+		if slabid != ii:
+			continue
 
 		extra_halo              = array_idx[jj]
 		extra_halo_global_index = sort[extra_halo:extra_halo+ncount[jj]]
