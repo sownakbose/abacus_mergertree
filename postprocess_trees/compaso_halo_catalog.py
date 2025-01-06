@@ -428,7 +428,7 @@ class CompaSOHaloCatalog:
 
 
         # Open the first file, just to grab the header
-        with asdf.open(halo_fns[0], lazy_load=True, copy_arrays=False) as af:
+        with asdf.open(halo_fns[0], lazy_load=True, memmap=True) as af:
             # will also be available as self.halos.meta
             self.header = af['header']
 
@@ -467,7 +467,7 @@ class CompaSOHaloCatalog:
 
         # Open all the files, validate them, and count the halos
         # Lazy load, but don't use mmap
-        afs = [asdf.open(hfn, lazy_load=True, copy_arrays=True) for hfn in halo_fns]
+        afs = [asdf.open(hfn, lazy_load=True, memmap=False) for hfn in halo_fns]
 
         # TODO: can't remember if keys() is an iterator
         # SOWNAK -- added list() to make it scriptable
@@ -740,14 +740,14 @@ class CompaSOHaloCatalog:
         for AB in self.load_AB:
             # Open the ASDF file handles so we can query the size
             if 'halo' in self.load_halofield:
-                halo_particle_afs = [asdf.open(pjoin(self.groupdir, f'halo_{RVorPID}_{AB}', f'halo_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, copy_arrays=True)
+                halo_particle_afs = [asdf.open(pjoin(self.groupdir, f'halo_{RVorPID}_{AB}', f'halo_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, memmap=False)
                                         for i in self.chunk_inds]
             else:
                 halo_particle_afs = []
 
             if 'field' in self.load_halofield:
                 # a little repetitious, but perhaps it's better to be explicit
-                field_particle_afs = [asdf.open(pjoin(self.groupdir, f'field_{RVorPID}_{AB}', f'field_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, copy_arrays=True)
+                field_particle_afs = [asdf.open(pjoin(self.groupdir, f'field_{RVorPID}_{AB}', f'field_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, memmap=False)
                                         for i in self.chunk_inds]
             else:
                 field_particle_afs = []

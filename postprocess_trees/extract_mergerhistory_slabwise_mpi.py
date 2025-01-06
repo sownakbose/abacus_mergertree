@@ -93,7 +93,7 @@ tree_dt = np.dtype([
 ], align=True)
 
 def read_multi_tree(alist):
-    afs	  = [asdf.open(alistname, lazy_load=True, copy_arrays=True) for alistname in alist]
+    afs	  = [asdf.open(alistname, lazy_load=True, memmap=False) for alistname in alist]
     N_halo_per_file = np.array([len(af["data"]["HaloMass"]) for af in afs])
     N_halos = N_halo_per_file.sum()
     cols  = {col:np.empty(N_halos, dtype=tree_dt[col]) for col in tree_dt.names}

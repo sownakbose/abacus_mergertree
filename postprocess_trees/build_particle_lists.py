@@ -203,7 +203,7 @@ mass_dt = np.dtype([
 	], align=True)
 
 def read_multi_cat(file_list):
-	afs   = [asdf.open(file_listname, lazy_load=True, copy_arrays=True) for file_listname in file_list]
+	afs   = [asdf.open(file_listname, lazy_load=True, memmap=False) for file_listname in file_list]
 	N_halo_per_file = np.array([len(af["data"]["HaloGlobalIndex"]) for af in afs])
 	N_halos = N_halo_per_file.sum()
 	cols  = {col:np.empty(N_halos, dtype=clean_dt[col]) for col in clean_dt.names}

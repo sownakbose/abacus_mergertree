@@ -32,7 +32,7 @@ def minify(fn, inplace=False,
     INT8_MAX = np.iinfo(np.int8).max
     INT32_MAX = np.iinfo(np.int32).max
 
-    with asdf.open(fn, lazy_load=False, copy_arrays=True, mode='r') as af:
+    with asdf.open(fn, lazy_load=False, memmap=False, mode='r') as af:
 
         tree = {'data':{},
                 'header':af.tree['header']}
