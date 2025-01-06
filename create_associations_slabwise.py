@@ -615,13 +615,13 @@ for jj in range(num_epochs):
 		"HaloVmax": vmax,
 		"Position": pos,
 		"IsAssociated": IS_ASSOC,
-		"IsPotentialSplit": IS_SPLIT,
+		"IsPotentialSplit": np.asarray(IS_SPLIT),
 		"Progenitors": PROG_INDX_OUT,
 		"NumProgenitors": NUM_PROG,
-		"MainProgenitor": MAIN_PROG,
-		"MainProgenitorFrac": MPMATCH_FRAC,
-		"MainProgenitorPrec": DMAIN_PROG,
-		"MainProgenitorPrecFrac": DMPMATCH_FRAC},
+		"MainProgenitor": np.asarray(MAIN_PROG),
+		"MainProgenitorFrac": np.asarray(MPMATCH_FRAC),
+		"MainProgenitorPrec": np.asarray(DMAIN_PROG),
+		"MainProgenitorPrecFrac": np.asarray(DMPMATCH_FRAC)},
 		"header": header,
 		}
 
@@ -637,6 +637,7 @@ for jj in range(num_epochs):
 		# Delete any variables local to this loop iteration to save memory
 		del header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
 		del tree
+		del data_tree
 
 		if do_dnext:
 			del neighbours, dneighbours

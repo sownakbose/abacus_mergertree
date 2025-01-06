@@ -325,7 +325,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#tend = time.time()
 	#print('Initial read: %4.2fs'%(tend-tstart))
 
-	indices_that_merge   = np.where(merged_to != -1)[0]
+	indices_that_merge   = np.asarray(merged_to != -1).nonzero()[0]
 	nhalos_this_slab     = numhalos[1]
 
 	header["NumTimeSliceRedshiftsPrev"] = Nsnapshot
@@ -342,10 +342,11 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 
 	while_counter = 0
+	num_reassign_prev = None
 	while len(hosts_to_reassign) > 0:
 		# Now, find the halos whose hosts are the "troublesome" objects
 		matches = ms.match(merged_to, global_ind[hosts_to_reassign], arr2_sorted=False)
-		halos_to_reassign   = np.where(matches != -1)[0]
+		halos_to_reassign = np.asarray(matches != -1).nonzero()[0]
 
 		if (while_counter > 1) and (len(halos_to_reassign) == num_reassign_prev):
 			# Exceptionally rare: cycle hasn't managed to reduce the number of halos that need to be reassigned
@@ -371,7 +372,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 			hosts_to_reassign   = indices_that_merge[mask_to_reassign]
 			# Remove objects that are now marked as merging onto "themselves"
 			index_diff = global_ind[hosts_to_reassign]-merged_to[hosts_to_reassign]
-			mask_remove = np.where(index_diff == 0)[0]
+			mask_remove = np.asarray(index_diff == 0).nonzero()[0]
 			hosts_to_reassign = np.delete(hosts_to_reassign, mask_remove)
 			num_reassign_prev = len(halos_to_reassign)
 			while_counter += 1	
@@ -382,7 +383,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	#hosts_to_reassign   = indices_that_merge[mask_to_reassign]
 	#if not len(hosts_to_reassign) == 0:
 	#    matches = ms.match(merged_to, global_ind[hosts_to_reassign], arr2_sorted=False)
-	#    halos_to_reassign   = np.where(matches != -1)[0]
+	#    halos_to_reassign   = np.asarray(matches != -1).nonzero()[0]
 	#    merged_to[halos_to_reassign] = merged_to[hosts_to_reassign][matches[halos_to_reassign]]
 
 	# Particle list will never be bigger than this
@@ -432,7 +433,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	npoutB_merge   = np.zeros(nhalos_this_slab, dtype=np.uint32)
 
 	merged_to_this_slab = merged_to[indices_this_slab]
-	deleted_halos = np.where(merged_to_this_slab != -1)[0]
+	deleted_halos = np.asarray(merged_to_this_slab != -1).nonzero()[0]
 	#p_indexing["is_deleted"][deleted_halos] = 1
 
 	print("Done reading all data. Now sorting indices...")
@@ -670,7 +671,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 		for extra in extra_halo_global_index:
 			N_mainprog[extra] = 0
 
-	if deleted_halos:
+	if deleted_halos.any():
 		N_mainprog[indices_this_slab][deleted_halos] = 0
 		N_mainprog_out = N_mainprog[indices_this_slab]
 	else:
