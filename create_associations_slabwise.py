@@ -76,7 +76,7 @@ args = my_parser.parse_args()
 
 num_cores = args.num_cores
 pre_dispatch = '4*n_jobs'
-batch_size = 'auto'
+batch_size = 65536
 halo_type = 'Abacus_slabwise'  # "Abacus_FOF" or "Abacus_SO" or "Rockstar" or "Abacus_Cosmos" or "asdf"
 start_snap = 0
 num_epochs = args.num_epochs
