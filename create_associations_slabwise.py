@@ -193,7 +193,9 @@ tree_build_time = 0.0
 tree_query_time = 0.0
 loop_time = 0.0
 
-
+# TODO: this uses global variables, which are treated as compile-time constants
+# by numba! This would be a critical bug, except for the fact that we're using
+# a fresh parallel process pool each time, triggering recompilation.
 @jit(nopython=True, fastmath=True)
 def surf_halo(iter, neigh, mainProgArray, mainProgFracArray, isSplitArray):
     halo_index = mask_eligible[iter]
