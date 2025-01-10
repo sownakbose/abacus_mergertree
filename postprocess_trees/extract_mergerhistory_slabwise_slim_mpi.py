@@ -8,6 +8,7 @@ import os
 from scipy.stats import binned_statistic
 from Abacus.fast_cksum.cksum_io import CksumWriter
 from compaso_halo_catalog import CompaSOHaloCatalog
+# from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
 from multithreaded_io_queue import MultithreadedIOQueue
 import match_searchsorted as ms
 from scipy.spatial import cKDTree
