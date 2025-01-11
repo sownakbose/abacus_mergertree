@@ -36,39 +36,28 @@ abacusnbody.data.asdf.set_nthreads(4)
 if len(sys.argv) < 3:
 	sys.exit("Usage: python build_particle_lists.py sim snapin")
 
-sim       = sys.argv[1]
+data_dir = sys.argv[1]
+sim_dir  = sys.argv[2]
 snapin    = float(sys.argv[3])
+
 zout      = "z%4.3f"%(snapin)
-
-# disk_dir  = os.environ['PSCRATCH'] + '/' #"/global/cfs/cdirs/desi/cosmosim/Abacus/"
-disk_dir = sys.argv[2] + '/'
-# base_dir  = "/global/cscratch1/sd/sbose/subsample_B_particles/"
-base_dir  = disk_dir
-
-if "small" in sim:
-	disk_dir += "/small/"
-	base_dir += "/small/"
-
-cat_dir   = base_dir + sim + "/halos/"  + zout + "/halo_info/"
+halo_info_dir   = sim_dir + "/halos/"  + zout + "/halo_info/"
+sim = os.path.basename(sim_dir)
 
 #merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
 # merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
 #merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 #merge_dir = "./mergerhistory/%s/"%(sim) + zout
-merge_dir = disk_dir + '/mergerhistory/%s/' % sim + zout
-if "small" in sim:
-	clean_dir_halo  = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_halo_info/"
-	clean_dir_rvpid = "/global/cfs/cdirs/desi/cosmosim/Abacus/cleaning/small/%s/"%(sim) + zout + "/cleaned_rvpid/"
-else:
-	clean_dir_halo  = disk_dir + "/cleaning/%s/"%(sim) + zout + "/cleaned_halo_info/"
-	clean_dir_rvpid = disk_dir + "/cleaning/%s/"%(sim) + zout + "/cleaned_rvpid/"
+merge_dir = data_dir + '/mergerhistory/' + zout
+clean_dir_halo  = data_dir + "/cleaning/" + zout + "/cleaned_halo_info/"
+clean_dir_rvpid = data_dir + "/cleaning/" + zout + "/cleaned_rvpid/"
 #clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 #clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
 
 # z_primary  = [0.100, 0.200, 0.300, 0.400, 0.500, 0.800, 1.100, 1.400, 1.700, 2.000, 2.500, 3.000]
 
 # Check if this is a primary redshift or not
-if os.path.isdir(base_dir + sim + "/halos/"  + zout + "/halo_rv_A"):
+if os.path.isdir(sim_dir + "/halos/"  + zout + "/halo_rv_A"):
 	#assert snapin in z_primary
 	print("Primary redshift.")
 	isPrimary = True
@@ -80,7 +69,7 @@ else:
 # Check if we've already done cleaning
 n_haloinfo = len(glob.glob(clean_dir_halo + "/cleaned_halo_info*.asdf"))
 n_rvpid    = len(glob.glob(clean_dir_rvpid + "/cleaned_rvpid*.asdf"))
-nslabs_tot = len(glob.glob(cat_dir + "/halo_info*.asdf"))
+nslabs_tot = len(glob.glob(halo_info_dir + "/halo_info*.asdf"))
 
 if n_haloinfo == n_rvpid == nslabs_tot:
 	print("%s, z=%4.3f has already been processed! Exiting now."%(sim, snapin))
@@ -115,7 +104,7 @@ if Nsnapshot == 0:
 snapList  = sorted([float(sub.split('z')[-1][:-8]) for sub in unq_prev_files])
 
 # Since some halo_info output times != association output times
-halo_unique_files = glob.glob( disk_dir + sim + "/halos/z*" )
+halo_unique_files = glob.glob( sim_dir + "/halos/z*" )
 halo_snapList = sorted([float(sub.split('z')[-1]) for sub in halo_unique_files])
 halo_snapList = np.array(halo_snapList)
 argSnap   = np.argmin(abs(halo_snapList - snapin))
@@ -294,7 +283,7 @@ for i, ii in enumerate(range(start_file_num,nfiles_to_do)):
 	global_ind = clean_cat["HaloGlobalIndex"].data
 
 	# Load halo info files
-	info_list  = return_search_list(cat_dir + "halo_info*.asdf", ii)
+	info_list  = return_search_list(halo_info_dir + "halo_info*.asdf", ii)
 	if isPrimary:
 		cat        = CompaSOHaloCatalog(info_list, clean_path=None, cleaned_halos=False, load_subsamples="AB_halo_pidrvint", convert_units=True, fields=["N", "npstartA", "npstartB", "npoutA", "npoutB"], unpack_bits=False)
 	else:

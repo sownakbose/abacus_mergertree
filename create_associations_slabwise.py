@@ -110,7 +110,7 @@ simName = args.simname  # "AbacusSummit_highbase_c000_ph100"
 base = args.inputdir + '/%s' % (simName)
 base += '/halos/z*'
 
-odir = args.outputdir + '/%s/' % (simName)
+odir = args.outputdir
 
 if not os.path.exists(odir):
     os.makedirs(odir)

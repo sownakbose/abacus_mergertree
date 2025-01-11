@@ -3,36 +3,26 @@
 
 from __future__ import division
 import os
-# os.environ["OMP_NUM_THREADS"] = "6"
 
-from scipy.stats import binned_statistic
 from Abacus.fast_cksum.cksum_io import CksumWriter
 from compaso_halo_catalog import CompaSOHaloCatalog
 # from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
 from multithreaded_io_queue import MultithreadedIOQueue
 import match_searchsorted as ms
 from scipy.spatial import cKDTree
-#from abacusnbody.data import asdf
-#from mpi4py import MPI
 from numba import njit
-from tqdm import *
 import numpy as np
-import h5py as h5
 import warnings
 import asdf
 import time
 import glob
 import sys
 import gc
+import abacusnbody.data.asdf
 
-import astropy.table
 from astropy.table import Table
 
-from asdf import AsdfFile, Stream
-
-# asdf.compression.set_decompression_options(nthreads=4)
 COMPRESSION_OPTIONS = dict(typesize="auto", shuffle="shuffle", compression_block_size=12*1024**2, blosc_block_size=3*1024**2, nthreads=4)
-import abacusnbody.data.asdf
 abacusnbody.data.asdf.set_nthreads(4)
 
 warnings.filterwarnings("ignore")
@@ -40,9 +30,12 @@ warnings.filterwarnings("ignore")
 if len(sys.argv) < 4:
 	sys.exit("python extract_mergerhistory_slabwise_slim_mpi.py base sim snapshot [outdir]")
 
-basedir  = sys.argv[1]
-sim      = sys.argv[2]
+mergerdir  = sys.argv[1]
+simdir      = sys.argv[2]
 snapin   = float(sys.argv[3])
+
+sim = os.path.basename(simdir)
+
 if len(sys.argv) == 5:
         outdir   = sys.argv[4]
         print("Writing to custom directory: %s"%outdir)
@@ -51,38 +44,16 @@ else:
         print("Writing to default directory: %s"%outdir)
 snapshot = "z%4.3f"%(snapin)
 
-#myrank   = MPI.COMM_WORLD.Get_rank()
-#i        = myrank
-#size     = MPI.COMM_WORLD.Get_size()
-
 num_neigh = 50
 factor    = 2.0
 
-#basedir  = "/home/sbose/analysis/data/%s"%(sim)
-#basedir  = "/mnt/store/sbose/%s"%(sim)
-
-#basedir += "/%s"%(sim)
-
-#base     = basedir + "/associations_StepNr_%d"%(snapin)
-#base    += ".%d.asdf"
-#print(basedir)
-if "small" in sim:
-	unique_files = glob.glob( basedir + "/merger/small/%s/"%(sim) + "associations_z*.0.asdf" )
-	nfiles    = len(glob.glob( unique_files[0][:-7] + ".*.asdf" ))
-else:
-	unique_files = glob.glob( basedir + "/merger/%s/"%(sim) + "associations_z*.0.asdf" )
-	nfiles    = len(glob.glob( unique_files[0][:-7] + ".*.asdf" ))
+unique_files = glob.glob( mergerdir + "/associations_z*.0.asdf" )
+nfiles    = len(glob.glob( unique_files[0][:-7] + ".*.asdf" ))
 
 # Since some halo_info output times != association output times
-if "small" in sim:
-	halo_unique_files = glob.glob( basedir + "/small/" + sim + "/halos/z*" )
-else:
-	halo_unique_files = glob.glob( basedir + sim + "/halos/z*" )
+halo_unique_files = glob.glob( simdir + "/halos/z*" )
 
-if "small" in sim:
-	print( basedir + "/merger/small/%s/"%(sim) + "associations_z*.0.asdf" )
-else:
-	print( basedir + "/merger/%s/"%(sim) + "associations_z*.0.asdf" )
+print( mergerdir + "/associations_z*.0.asdf" )
 sys.stdout.flush()
 
 # Get box size
@@ -261,7 +232,7 @@ def fixhalo_v2(nn, halos_to_fix, max_mass_diff, indmax, mbp_idx, neighbour_list,
 		return
 
 
-odir = outdir + "/%s/"%sim + snapshot + "/"
+odir = outdir + "/" + snapshot + "/"
 
 if not os.path.exists(odir):
 	os.makedirs(odir, exist_ok=True)
@@ -285,10 +256,7 @@ for i, ii in enumerate(range(nfiles)):
 	print("Superslab number: %d"%(ii))
 	sys.stdout.flush()
 
-	if "small" in sim:
-		file_list_now  = return_associations_list(basedir + "/merger/small/%s/"%(sim) + "associations_z%4.3f."%(snapList[0]) + "*.asdf", ii)
-	else:
-		file_list_now  = return_associations_list(basedir + "/merger/%s/"%(sim) + "associations_z%4.3f."%(snapList[0]) + "*.asdf", ii)
+	file_list_now  = return_associations_list(mergerdir + "/associations_z%4.3f."%(snapList[0]) + "*.asdf", ii)
 
 	t0 = time.time()
 	halos, numhalos = read_multi_tree(file_list_now)
@@ -331,12 +299,8 @@ for i, ii in enumerate(range(nfiles)):
 		# Load next snapshot
 		print("Loading associations for snapshot %d of %d"%(jj+1,Nsnapshot))
 		sys.stdout.flush()
-		if "small" in sim:
-			file_list_next = return_associations_list(basedir + "/merger/small/%s/"%(sim) + "associations_z%4.3f."%(snapList[jj]) + "*.asdf", ii)
-			cat_list_next  = return_search_list(basedir + "/small/" + sim + "/halos/z%4.3f/halo_info/"%(halo_snapList[jj]) + "halo_info*.asdf", ii)
-		else:
-			file_list_next = return_associations_list(basedir + "/merger/%s/"%(sim) + "associations_z%4.3f."%(snapList[jj]) + "*.asdf", ii)
-			cat_list_next  = return_search_list(basedir + sim + "/halos/z%4.3f/halo_info/"%(halo_snapList[jj]) + "halo_info*.asdf", ii)
+		file_list_next = return_associations_list(mergerdir + "/associations_z%4.3f."%(snapList[jj]) + "*.asdf", ii)
+		cat_list_next  = return_search_list(simdir + "/halos/z%4.3f/halo_info/"%(halo_snapList[jj]) + "halo_info*.asdf", ii)
 		t0 = time.time()
 		halos_next, numhalos_next = read_multi_tree_slim(file_list_next)
 		HaloIndexNext  = halos_next["HaloIndex"]
