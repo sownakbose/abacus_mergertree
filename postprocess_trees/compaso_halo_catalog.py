@@ -412,7 +412,7 @@ class CompaSOHaloCatalog:
 
             # Validate the user's `load_subsamples` option and figure out what subsamples we need to load
             # SOWNAK re.match --> re.fullmatch
-            subsamp_match = re.fullmatch(r'(?P<AB>(A|B|AB))(_(?P<hf>halo|field))?_(?P<pidrv>all|pid|rv|pidrvint)', load_subsamples)
+            subsamp_match = re.fullmatch(r'(?P<AB>(A|B|AB))(_(?P<hf>halo|field))?_(?P<pidrv>all|pid|rv|pidrvint|rvint)', load_subsamples)
             if not subsamp_match:
                 raise ValueError(f'Value "{load_subsamples}" for argument `load_subsamples` not understood')
             self.load_AB = subsamp_match.group('AB')
@@ -424,6 +424,8 @@ class CompaSOHaloCatalog:
             # SOWNAK
             if self.load_pidrv == 'pidrvint':
                 self.load_pidrv = ['pid', 'rvint']
+            if self.load_pidrv == 'rvint':
+                self.load_pidrv = ['rvint']
         del load_subsamples  # use the parsed values
 
 
@@ -740,8 +742,14 @@ class CompaSOHaloCatalog:
         for AB in self.load_AB:
             # Open the ASDF file handles so we can query the size
             if 'halo' in self.load_halofield:
-                halo_particle_afs = [asdf.open(pjoin(self.groupdir, f'halo_{RVorPID}_{AB}', f'halo_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, memmap=False)
-                                        for i in self.chunk_inds]
+                halo_particle_afs = []
+                # halo_particle_afs = [asdf.open(pjoin(self.groupdir, f'halo_{RVorPID}_{AB}', f'halo_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, memmap=False)
+                #                         for i in self.chunk_inds]
+                for i in self.chunk_inds:
+                    try:
+                        halo_particle_afs.append(asdf.open(pjoin(self.groupdir, f'halo_{RVorPID}_{AB}', f'halo_{RVorPID}_{AB}_{i:03d}.asdf'), lazy_load=True, memmap=False))
+                    except FileNotFoundError:
+                        pass
             else:
                 halo_particle_afs = []
 
@@ -754,10 +762,10 @@ class CompaSOHaloCatalog:
 
             # Should have same number of files (1st subsample; 2nd L1), but note that empty slabs don't get files
             # TODO: double check these asserts
-            try:
-                assert len(N_halo_per_file) <= len(halo_particle_afs) or len(N_halo_per_file) <= len(field_particle_afs)
-            except:
-                assert len(N_halo_per_file) == len(halo_particle_afs) or len(self.halo_fns) == len(field_particle_afs)
+            # try:
+            #     assert len(N_halo_per_file) <= len(halo_particle_afs) or len(N_halo_per_file) <= len(field_particle_afs)
+            # except:
+            #     assert len(N_halo_per_file) == len(halo_particle_afs) or len(self.halo_fns) == len(field_particle_afs)
             particle_afs = halo_particle_afs + field_particle_afs
 
             if not self._reindexed[AB] and 'halo' in self.load_halofield and 'npstart'+AB in self.halos.colnames:

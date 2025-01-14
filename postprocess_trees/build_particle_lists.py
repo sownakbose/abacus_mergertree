@@ -32,19 +32,26 @@ if len(sys.argv) < 3:
 
 data_dir = sys.argv[1]
 sim_dir = sys.argv[2]
-snapin = float(sys.argv[3])
+use_B_rv = bool(int(sys.argv[3]))
+snapin = float(sys.argv[4])
 
 zout = 'z%4.3f' % (snapin)
 halo_info_dir = sim_dir + '/halos/' + zout + '/halo_info/'
 sim = os.path.basename(sim_dir)
+nslabs_tot = len(glob.glob(halo_info_dir + '/halo_info*.asdf'))
 
 # merge_dir = "/global/cfs/cdirs/desi/cosmosim/Abacus/mergerhistory/%s/"%(sim) + zout
 # merge_dir = "/mnt/store1/sbose/mergerhistory/%s/"%(sim) + zout
 # merge_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/mergerhistory/%s/"%(sim)+zout
 # merge_dir = "./mergerhistory/%s/"%(sim) + zout
 merge_dir = data_dir + '/mergerhistory/' + zout
-clean_dir_halo = data_dir + '/cleaning/' + zout + '/cleaned_halo_info/'
-clean_dir_rvpid = data_dir + '/cleaning/' + zout + '/cleaned_rvpid/'
+clean_dir_halo = data_dir + '/cleaning/' + zout
+clean_dir_rvpid = data_dir + '/cleaning/' + zout
+
+if nslabs_tot > 1:
+    clean_dir_halo += '/cleaned_halo_info/'
+    clean_dir_rvpid += '/cleaned_rvpid/'
+
 # clean_dir = "/global/cscratch1/sd/sbose/python/abacus_mergertree/postprocess_trees/test_codes/cleaned_halos_new/%s/halos/"%(sim) + zout
 # clean_dir = "./cleaned_halos/%s/halos/"%(sim) + zout
 
@@ -63,7 +70,6 @@ else:
 # Check if we've already done cleaning
 n_haloinfo = len(glob.glob(clean_dir_halo + '/cleaned_halo_info*.asdf'))
 n_rvpid = len(glob.glob(clean_dir_rvpid + '/cleaned_rvpid*.asdf'))
-nslabs_tot = len(glob.glob(halo_info_dir + '/halo_info*.asdf'))
 
 if n_haloinfo == n_rvpid == nslabs_tot:
     print('%s, z=%4.3f has already been processed! Exiting now.' % (sim, snapin))
@@ -291,9 +297,10 @@ def fill_particles(
             ]
             counter_A += noutA[halo_now]
             # Add subsample B rvints
-            rvint_B[counter_B : counter_B + noutB[halo_now]] = RV[
-                nstartB[halo_now] : nstartB[halo_now] + noutB[halo_now]
-            ]
+            if use_B_rv:
+                rvint_B[counter_B : counter_B + noutB[halo_now]] = RV[
+                    nstartB[halo_now] : nstartB[halo_now] + noutB[halo_now]
+                ]
             # Add subsample B pids
             pid_B[counter_B : counter_B + noutB[halo_now]] = PID[
                 nstartB[halo_now] : nstartB[halo_now] + noutB[halo_now]
@@ -343,11 +350,24 @@ for i, ii in enumerate(range(start_file_num, nfiles_to_do)):
             info_list,
             clean_path=None,
             cleaned_halos=False,
-            load_subsamples='AB_halo_pidrvint',
+            load_subsamples='AB_halo_pid',
             convert_units=True,
             fields=['N', 'npstartA', 'npstartB', 'npoutA', 'npoutB'],
             unpack_bits=False,
         )
+
+        # In AbacusBacklight, we output B PIDs but not B RVs, so we need to load RVs and PIDs separately.
+        rvcat = CompaSOHaloCatalog(
+            info_list,
+            clean_path=None,
+            cleaned_halos=False,
+            load_subsamples='AB_halo_rvint' if use_B_rv else 'A_halo_rvint',
+            convert_units=True,
+            fields=['N', 'npstartA', 'npstartB', 'npoutA', 'npoutB'],
+            unpack_bits=False,
+        )
+        RV = rvcat.subsamples['rvint'].data
+        del rvcat
     else:
         cat = CompaSOHaloCatalog(
             info_list,
@@ -358,6 +378,7 @@ for i, ii in enumerate(range(start_file_num, nfiles_to_do)):
             fields=['N', 'npstartA', 'npstartB', 'npoutA', 'npoutB'],
             unpack_bits=False,
         )
+        RV = np.array([0, 0, 0])
     # cat        = CompaSOHaloCatalog(info_list, clean_path=None, cleaned_halos=False, load_subsamples=False, convert_units=True, fields=["N", "npstartA", "npstartB", "npoutA", "npoutB"], unpack_bits=False)
     N = cat.halos['N'].data
     nstartA = cat.halos['npstartA'].data
@@ -374,11 +395,6 @@ for i, ii in enumerate(range(start_file_num, nfiles_to_do)):
         numhalos = np.array([0, numhalos[0], 0])
 
     PID = cat.subsamples['pid'].data
-
-    if isPrimary:
-        RV = cat.subsamples['rvint'].data
-    else:
-        RV = np.array([0, 0, 0])
 
     num_subsamples = np.array([len(PID)], dtype=np.uint64)
     cat = []
@@ -479,7 +495,10 @@ for i, ii in enumerate(range(start_file_num, nfiles_to_do)):
     # Create arrays for particle lists
     if isPrimary:
         rvint_A = np.empty((tot_particles_to_add, 3), dtype=np.int32)
-        rvint_B = np.empty((tot_particles_to_add, 3), dtype=np.int32)
+        if use_B_rv:
+            rvint_B = np.empty((tot_particles_to_add, 3), dtype=np.int32)
+        else:
+            rvint_B = None
         pid_A = np.empty(tot_particles_to_add, dtype=np.uint64)
         pid_B = np.empty(tot_particles_to_add, dtype=np.uint64)
     else:
@@ -861,12 +880,15 @@ for i, ii in enumerate(range(start_file_num, nfiles_to_do)):
         data_tree = {
             'data': {
                 'packedpid_A': pid_A[:counter_A].copy(),
-                'packedpid_B': pid_B[:counter_B].copy(),
                 'rvint_A': rvint_A[:counter_A].copy(),
-                'rvint_B': rvint_B[:counter_B].copy(),
             },
             'header': header,
         }
+
+        if use_B_rv:
+            data_tree['data']['rvint_B'] = rvint_B[:counter_B].copy()
+            # If we're not using B_rv, there's almost certainly no point in writing out the cleaned B PIDs
+            data_tree['data']['packedpid_B'] = pid_B[:counter_B].copy()
     else:
         data_tree = {
             'data': {'packedpid_A': pid_A[:counter_A].copy(), 'packedpid_B': pid_B[:counter_B].copy()},
@@ -927,10 +949,11 @@ os.system(
     '$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32'
     % (clean_dir_halo, clean_dir_halo)
 )
-os.system(
-    '$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32'
-    % (clean_dir_rvpid, clean_dir_rvpid)
-)
+if clean_dir_rvpid != clean_dir_halo:
+    os.system(
+        '$ABACUS/external/fast-cksum/bin/merge_checksum_files.py --delete %s/*.crc32 > %s/checksums.crc32'
+        % (clean_dir_rvpid, clean_dir_rvpid)
+    )
 
 tfinish = time.time()
 print('Took %4.2fs.' % (tfinish - tbegin))

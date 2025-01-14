@@ -393,6 +393,7 @@ for jj in range(num_epochs):
     sys.stdout.flush()
     step = steps[jj]
     step_next = steps[jj + 1]
+    zdir = os.path.basename(step)
 
     if jj == 0:
         is_first_step = True
@@ -444,10 +445,9 @@ for jj in range(num_epochs):
         # Begin reading halo_info files and 10% subsamples
         t_read_0 = time.time()
 
-        header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = (
+        header, box, nslice, _z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho = (
             read_halo_catalogue(chunk_list[ifile_counter], halo_type, return_header=True)
         )
-        z = header['Redshift']
 
         t_read_1 = time.time()
 
@@ -688,7 +688,7 @@ for jj in range(num_epochs):
 
         # Save the data
         output_file = asdf.AsdfFile(data_tree)
-        outfn = odir + 'associations_z%4.3f.%d.asdf' % (z, ifile_counter)
+        outfn = odir + 'associations_%s.%d.asdf' % (zdir, ifile_counter)
         tmpfn = outfn + '.tmp'
         output_file.write_to(tmpfn)
         os.rename(tmpfn, outfn)  # try to avoid partial writes
@@ -696,7 +696,7 @@ for jj in range(num_epochs):
         del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC
 
         # Delete any variables local to this loop iteration to save memory
-        del header, box, nslice, z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
+        del header, box, nslice, _z, numhalos, nphalo, mhalo, pos, vmax, nstartA, ntagA, nstartB, ntagB, ntag, pids, rho
         del tree
         del data_tree
 
