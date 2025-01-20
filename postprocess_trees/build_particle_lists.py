@@ -99,8 +99,6 @@ if not os.path.exists(clean_dir_rvpid):
 
 unq_prev_files = sorted(glob.glob(merge_dir + '/temporary_mass_matches_z*.000.npy'))
 Nsnapshot = len(unq_prev_files)
-if Nsnapshot == 0:
-    raise ValueError(f'No previous snapshots found in {merge_dir:s}')
 snapList = sorted([float(sub.split('z')[-1][:-8]) for sub in unq_prev_files])
 
 # Since some halo_info output times != association output times
