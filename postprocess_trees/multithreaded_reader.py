@@ -1,3 +1,5 @@
+import gc
+
 import numpy as np
 import threading
 import queue
@@ -24,6 +26,11 @@ def multithreaded_read(fns, nthreads=2):
     data: list of object
         List of return values from np.load, same order as `fns`
     """
+
+    # workaround CPython 3.11 bug (SystemError)
+    # https://github.com/python/cpython/issues/106905
+    gc.disable()  
+
     fn_queue = queue.SimpleQueue()
     data_queue = queue.SimpleQueue()
 
@@ -44,4 +51,7 @@ def multithreaded_read(fns, nthreads=2):
     assert fn_queue.empty()
     assert data_queue.empty()
     res = [res[fn] for fn in fns]
+
+    gc.enable()
+
     return res  # list of data, same order as input
