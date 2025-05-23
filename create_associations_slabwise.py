@@ -105,6 +105,12 @@ search_rad = 4.0
 
 simName = args.simname  # "AbacusSummit_highbase_c000_ph100"
 
+# Output settings
+asdf_compression = 'blsc'
+compression_kwargs = dict(
+    compression_block_size=12 * 1024**2, blosc_block_size=3 * 1024**2, nthreads=4, typesize='auto', shuffle='shuffle'
+)
+
 # Load initial catalogue
 
 base = args.inputdir + '/%s' % (simName)
@@ -686,11 +692,40 @@ for jj in range(num_epochs):
             'header': header,
         }
 
+        ### LHG modifications: reduce dtype widths
+        FLOAT32_KEYS = ['HaloMass', 'MainProgenitorFrac', 'MainProgenitorPrecFrac', 'HaloVmax']
+        INT8_KEYS = ['IsAssociated', 'IsPotentialSplit']
+        INT32_KEYS = ['NumProgenitors']
+
+        INT8_MAX = np.iinfo(np.int8).max
+        INT32_MAX = np.iinfo(np.int32).max
+
+        data_subtree = data_tree['data']
+        for key in data_subtree:
+            if key in FLOAT32_KEYS:
+                data_subtree[key] = data_subtree[key].astype(np.float32)
+                assert np.isfinite(data_subtree[key]).all()
+
+            elif key in INT8_KEYS:
+                assert (data_subtree[key] <= INT8_MAX).all()
+                assert (data_subtree[key] >= 0).all()
+                data_subtree[key] = data_subtree[key].astype(np.int8)
+
+            elif key in INT32_KEYS:
+                assert (data_subtree[key] <= INT32_MAX).all()
+                assert (data_subtree[key] >= 0).all()
+                data_subtree[key] = data_subtree[key].astype(np.int32)
+
+            else:
+                data_subtree[key] = np.array(data_subtree[key])
+
+        ### End LHG modifications
+
         # Save the data
         output_file = asdf.AsdfFile(data_tree)
         outfn = odir + 'associations_%s.%d.asdf' % (zdir, ifile_counter)
         tmpfn = outfn + '.tmp'
-        output_file.write_to(tmpfn)
+        output_file.write_to(tmpfn, all_array_compression=asdf_compression, compression_kwargs=compression_kwargs)
         os.rename(tmpfn, outfn)  # try to avoid partial writes
 
         del PROG_INDX, PROG_INDX_OUT, NUM_PROG, MAIN_PROG, IS_SPLIT, DMAIN_PROG, MPMATCH_FRAC, DMPMATCH_FRAC, IS_ASSOC

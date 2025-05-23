@@ -110,7 +110,7 @@ simName = args.simname #"AbacusSummit_highbase_c000_ph100"
 # Output settings
 asdf_compression = 'blsc'
 asdf.compression.validate(asdf_compression)
-asdf.compression.set_compression_options(asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4)
+asdf.compression.set_compression_options(asdf_block_size=12*1024**2, blocksize=3*1024**2, nthreads=4, typesize='auto', shuffle='shuffle')
 
 # Load initial catalogue
 
@@ -577,7 +577,7 @@ for jj in range(num_epochs):
 
 		# Now, we need to find the list of neighbours in the next_output step
 		t_query_1  = time.time()
-		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, n_jobs = -1)[1]
+		neighbours = tree.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad, k = num_neigh, n_jobs = num_cores)[1]
 		t_query_2  = time.time()
 		tquery     = t_query_2-t_query_1
 		print("Took %4.2fs to query all neighbours."%(tquery))
@@ -590,7 +590,7 @@ for jj in range(num_epochs):
 			print("Finding neighbours for subsequent catalogue.")
 			sys.stdout.flush()
 			t_query_1   = time.time()
-			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad2, k = num_neigh2, n_jobs = -1)[1]
+			dneighbours = tree_dnext.query(pos[mask_eligible]+half_box, distance_upper_bound = search_rad2, k = num_neigh2, n_jobs = num_cores)[1]
 			t_query_2   = time.time()
 			tquery      = t_query_2-t_query_1
 			print("Took %4.2fs to query all neighbours."%(tquery))
@@ -665,11 +665,11 @@ for jj in range(num_epochs):
 		}
 
 		# reduce some of the type widths
-		for f in ['HaloMass', 'MainProgenitorFrac', 'MainProgenitorPrecFrac', 'HaloVmax']:
-			data_tree[f] = data_tree[f].astype(np.float32)
-		data_tree['NumProgenitors'] = data_tree['NumProgenitors'].astype(np.int32)
-		for f in ['IsAssociated', 'IsPotentialSplit']:
-			data_tree[f] = data_tree[f].astype(np.int8)
+		for f in ['HaloMass', 'MainProgenitorFrac', 'MainProgenitorPrecFrac']:
+			data_tree['data'][f] = data_tree['data'][f].astype(np.float32)
+		#data_tree['data']['NumProgenitors'] = data_tree['data']['NumProgenitors'].astype(np.int32)
+		for f in ['IsAssociated']:  # 'IsPotentialSplit'
+			data_tree['data'][f] = data_tree['data'][f].astype(np.int8)
 
 
 		# Save the data
